@@ -6,11 +6,17 @@ A C# project that reads in-game values like HP from Elden Ring's memory and plan
 # Features
 
 - Reads memory from Elden Ring via pointer chains.
+  
 - Handles module base address resolution and offset calculation.
+  
 - No EAC (Easy Anti-Cheat) support – must be run offline.
+  
 - Requires Administrator privileges.
+  
 - Planned: Integration with an LLM (e.g., ChatGPT) to impersonate an in-game maiden, commenting and encouraging the player.
+  
 - Planned: WPF overlay displaying messages in real-time over Elden Ring.
+  
 
 ## Current State
 
