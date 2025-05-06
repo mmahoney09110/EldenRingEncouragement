@@ -46,4 +46,8 @@ This project is for educational and non-commercial use. Do **NOT** use it online
 
 ## License
 
-MIT License
+This project is licensed under the [MIT License](./LICENSE). You are free to use, modify, and distribute this code, as long as the original license is included in your distribution.
+
+---
+
+> *"Arise now, Ye Tarnished... and bring your HP bar with you."*
