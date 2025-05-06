@@ -3,16 +3,16 @@
 
 A C# project that reads in-game values like HP from Elden Ring's memory and plans to extend into an immersive AI-based encouragement system.
 
-## 🌟 Features
+##Features
 
-- ✔️ Reads memory from Elden Ring via pointer chains.
-- ✔️ Handles module base address resolution and offset calculation.
-- ❌ No EAC (Easy Anti-Cheat) support – must be run offline.
-- 🔐 Requires Administrator privileges.
-- 🧠 Planned: Integration with an LLM (e.g., ChatGPT) to impersonate an in-game maiden, commenting and encouraging the player.
-- 🎮 Planned: WPF overlay displaying messages in real-time over Elden Ring.
+- Reads memory from Elden Ring via pointer chains.
+- Handles module base address resolution and offset calculation.
+- No EAC (Easy Anti-Cheat) support – must be run offline.
+- Requires Administrator privileges.
+- Planned: Integration with an LLM (e.g., ChatGPT) to impersonate an in-game maiden, commenting and encouraging the player.
+- Planned: WPF overlay displaying messages in real-time over Elden Ring.
 
-## 🚀 Current State
+## Current State
 
 Successfully retrieves HP from Elden Ring’s memory using pointer path:
 ```
@@ -26,18 +26,18 @@ Successfully retrieves HP from Elden Ring’s memory using pointer path:
 3. Run as Administrator.
 4. Readings (like HP) will be logged to the console.
 
-## 📦 Future Roadmap
+## Future Roadmap
 
-- [ ] Add memory reads for additional stats (e.g., Stamina, FP, Position)
-- [ ] Send stat data to an LLM endpoint (e.g., OpenAI API)
-- [ ] Create an AI personality that acts as your Maiden
-- [ ] Build a WPF overlay to display dialogue and status updates
-- [ ] Optional voice synthesis integration
+-Add memory reads for additional stats (e.g., Stamina, FP, Position)
+-Send stat data to an LLM endpoint (e.g., OpenAI API)
+-Create an AI personality that acts as your Maiden
+-Build a WPF overlay to display dialogue and status updates
+-Optional voice synthesis integration
 
-## ❗ Disclaimer
+## !!!Disclaimer!!!
 
 This project is for educational and non-commercial use. Do **NOT** use it online or with EAC enabled. You are responsible for any consequences of modifying game memory.
 
-## 📄 License
+## License
 
 MIT License
