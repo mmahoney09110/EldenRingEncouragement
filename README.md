@@ -1,95 +1,43 @@
-# r2modman
 
-[![Discord](https://img.shields.io/discord/727304496522461185?label=r2modman%20Discord&style=for-the-badge)](https://discord.gg/jE2zWHY)
+# Elden Ring Memory Reader & AI Companion
 
-[![GitHub](https://img.shields.io/github/license/ebkr/r2modmanPlus?color=orange&style=for-the-badge)](https://github.com/ebkr/r2modmanPlus)
+A C# project that reads in-game values like HP from Elden Ring's memory and plans to extend into an immersive AI-based encouragement system.
 
-| [Features](#features) | [What is a mod manager?](#what-is-a-mod-manager) | [Installing](#installing) | [Help](#help) | [Feedback and suggestions](#feedback-and-suggestions) | [Changelog](#changelog) | [Screenshots](#screenshots) |
-|---|---|---|---|---|---|---|
+## 🌟 Features
 
-## Features
-- Support for Risk of Rain 2, Dyson Sphere Program, Valheim, GTFO, BONEWORKS, and more
-- A clean user interface designed to make modding as simple as possible
-- Safer mod installation allowing you to play the game through Steam normally
-- Mod profiles to switch between different sets of mods quickly and easily
-- Export profiles to easily share both your mods and configs with friends
-- Download and install mods directly from the manager
-- View and update any outdated mods
-- Edit configs directly from the manager
-- Auto-updates
-- And more!
+- ✔️ Reads memory from Elden Ring via pointer chains.
+- ✔️ Handles module base address resolution and offset calculation.
+- ❌ No EAC (Easy Anti-Cheat) support – must be run offline.
+- 🔐 Requires Administrator privileges.
+- 🧠 Planned: Integration with an LLM (e.g., ChatGPT) to impersonate an in-game maiden, commenting and encouraging the player.
+- 🎮 Planned: WPF overlay displaying messages in real-time over Elden Ring.
 
-## What is a mod manager?
-It's quite simple really, a mod manager is an application to make it easier to control which mods you have installed.
+## 🚀 Current State
 
-You can choose to update, enable/disable or even uninstall mods with a simple click, all whilst keeping it available on another profile.
+Successfully retrieves HP from Elden Ring’s memory using pointer path:
+```
+[ModuleBase] + 0x3D65F88 → WorldChrMan Base Pointer → +0x10EF8 → +0x0 → +0x190 → +0x0 → +0x138
+```
 
-## Installing
+## 🛠 Setup
 
-### First time installing
-#### Windows
-1. Click "Manual Download" on Thunderstore.
-2. Inside the downloaded **.zip** file. Run the "r2modman Setup X.X.X.exe" (where X.X.X is the current version).
-3. Follow the steps in the installer.
+1. Run Elden Ring in **offline mode** (disable EAC).
+2. Open the project in Visual Studio.
+3. Run as Administrator.
+4. Readings (like HP) will be logged to the console.
 
-#### Linux
-1. Click "Manual Download" on Thunderstore.
-2. Inside the download **.zip** file there is an AppImage release.
+## 📦 Future Roadmap
 
-**If you'd prefer to install platform specific builds then you can find them under the latest GitHub release on the ebkr/r2modmanPlus repository**
+- [ ] Add memory reads for additional stats (e.g., Stamina, FP, Position)
+- [ ] Send stat data to an LLM endpoint (e.g., OpenAI API)
+- [ ] Create an AI personality that acts as your Maiden
+- [ ] Build a WPF overlay to display dialogue and status updates
+- [ ] Optional voice synthesis integration
 
-**Platform builds:**
- - deb
- - rpm
- - pacman
- - tar.gz
+## ❗ Disclaimer
 
- _Problems with Linux builds should be reported in the [r2modman discord](https://discord.gg/jE2zWHY)._
+This project is for educational and non-commercial use. Do **NOT** use it online or with EAC enabled. You are responsible for any consequences of modifying game memory.
 
-##### Note
-- Temporary workaround to force Proton on Linux systems
-    - Place a `.forceproton` file in the game directory whilst a solution is in development
+## 📄 License
 
-### Updating
-r2modman will automatically download any available updates whilst you use it.
-
-If an update has been downloaded, it will be installed once you have closed the application.
-
-## Help
-### Manager errors:
-1. Check the [wiki](https://github.com/ebkr/r2modmanPlus/wiki).
-2. If you can't find the solution, join the community modding discord and ask for help in the appropriate channels.
-
-### Mod errors:
-1. Join the relevant community modding discord and ask for help in the appropriate channels.
-
-## Feedback and suggestions
-It's encouraged to provide as much feedback as you'd like, and fully open to criticism.
-
-Suggestions are welcome and there are already some suggestions that have made it in to the manager!
-From small features such as always-expanded cards, all the way to larger features such as code-based profile exports.
-
-The only thing you have to consider when suggesting a feature is the impact it will have on users who don't have a lot of experience with computers.
-
-## Screenshots
-
-Game selection
-
-![](https://i.imgur.com/mmzY9xQ.png)
-
-Installed mod view
-
-![](https://i.imgur.com/d7w4qEl.png)
-
-Downloadable mods
-
-![](https://i.imgur.com/eoIAMMP.png)
-
-Config editor
-
-![](https://i.imgur.com/RT6HsxF.png)
-
-Profiles
-
-![](https://i.imgur.com/nLfNaQJ.png)
-
+MIT License
