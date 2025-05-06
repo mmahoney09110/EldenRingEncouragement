@@ -28,11 +28,11 @@ Successfully retrieves HP from Elden Ring’s memory using pointer path:
 
 ## Future Roadmap
 
--Add memory reads for additional stats (e.g., Stamina, FP, Position)
--Send stat data to an LLM endpoint (e.g., OpenAI API)
--Create an AI personality that acts as your Maiden
--Build a WPF overlay to display dialogue and status updates
--Optional voice synthesis integration
+- Add memory reads for additional stats (e.g., Stamina, FP, Position)
+- Send stat data to an LLM endpoint (e.g., OpenAI API)
+- Create an AI personality that acts as your Maiden
+- Build a WPF overlay to display dialogue and status updates
+- Optional voice synthesis integration
 
 ## !!!Disclaimer!!!
 
