@@ -3,7 +3,7 @@
 
 A C# project that reads in-game values like HP from Elden Ring's memory and plans to extend into an immersive AI-based encouragement system.
 
-##Features
+# Features
 
 - Reads memory from Elden Ring via pointer chains.
 - Handles module base address resolution and offset calculation.
