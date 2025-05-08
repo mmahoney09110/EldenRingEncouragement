@@ -52,12 +52,12 @@ namespace EldenRingMemoryReader
                 }
             }
 
-            // 1. Check if running as Administrator
+            //1.Check if running as Administrator
             if (!IsAdministrator())
-            {
-                Console.WriteLine("Please run this program as Administrator.");
-                return;
-            }
+                {
+                    Console.WriteLine("Please run this program as Administrator.");
+                    return;
+                }
 
             // 2. Check if Elden Ring process is running
             var process = Process.GetProcessesByName("eldenring").FirstOrDefault();

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MaidenHelper")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d7811ceb7f6d3c7c066287fc3ae676d5da9355a7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5c7effab49e3117cd3600fb400943ea65573547d")]
 [assembly: System.Reflection.AssemblyProductAttribute("MaidenHelper")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MaidenHelper")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
