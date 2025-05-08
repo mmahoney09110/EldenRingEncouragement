@@ -27,3 +27,4 @@ C:\Users\MahoneyPC\Documents\EldenRingEncouragement\MaidenHelper\obj\Debug\net9.
 C:\Users\MahoneyPC\Documents\EldenRingEncouragement\MaidenHelper\obj\Debug\net9.0\MaidenHelper.pdb
 C:\Users\MahoneyPC\Documents\EldenRingEncouragement\MaidenHelper\obj\Debug\net9.0\MaidenHelper.genruntimeconfig.cache
 C:\Users\MahoneyPC\Documents\EldenRingEncouragement\MaidenHelper\obj\Debug\net9.0\ref\MaidenHelper.dll
+C:\Users\MahoneyPC\Documents\EldenRingEncouragement\MaidenHelper\bin\Debug\net9.0\Weapon_IDs.csv

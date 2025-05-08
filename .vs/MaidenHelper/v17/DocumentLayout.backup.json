@@ -5,6 +5,10 @@
     {
       "AbsoluteMoniker": "D:0:0:{25F6F82E-4517-4E96-8084-F7CA84515BC3}|MaidenHelper\\MaidenHelper.csproj|c:\\users\\mahoneypc\\documents\\eldenringencouragement\\maidenhelper\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{25F6F82E-4517-4E96-8084-F7CA84515BC3}|MaidenHelper\\MaidenHelper.csproj|solutionrelative:maidenhelper\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{25F6F82E-4517-4E96-8084-F7CA84515BC3}|MaidenHelper\\MaidenHelper.csproj|c:\\users\\mahoneypc\\documents\\eldenringencouragement\\maidenhelper\\locationdict.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{25F6F82E-4517-4E96-8084-F7CA84515BC3}|MaidenHelper\\MaidenHelper.csproj|solutionrelative:maidenhelper\\locationdict.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,8 +18,21 @@
       "DocumentGroups": [
         {
           "DockedHeight": 286,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "LocationDict.cs",
+              "DocumentMoniker": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\LocationDict.cs",
+              "RelativeDocumentMoniker": "MaidenHelper\\LocationDict.cs",
+              "ToolTip": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\LocationDict.cs",
+              "RelativeToolTip": "MaidenHelper\\LocationDict.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-08T06:59:13.741Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -24,7 +41,7 @@
               "RelativeDocumentMoniker": "MaidenHelper\\Program.cs",
               "ToolTip": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\Program.cs",
               "RelativeToolTip": "MaidenHelper\\Program.cs",
-              "ViewState": "AgIAAM0AAAAAAAAAAAAiwN4AAAA4AAAAAAAAAA==",
+              "ViewState": "AgIAAI0BAAAAAAAAAAAiwLYBAAANAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-05-06T03:41:59.586Z",
               "EditorCaption": ""

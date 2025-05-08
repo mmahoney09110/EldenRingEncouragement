@@ -4,11 +4,14 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
+using LocationDict;
 
 namespace EldenRingMemoryReader
 {
+    
     internal class Program
     {
+
         // Import required WinAPI functions
         [DllImport("kernel32.dll")]
         public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int processId);
@@ -32,6 +35,23 @@ namespace EldenRingMemoryReader
 
         static void Main(string[] args)
         {
+            // 0. Load Weapon Slot Names
+            string filePath = "Weapon_IDs.csv";
+            Dictionary<int, string> idToName = new Dictionary<int, string>();
+            
+            foreach (var line in File.ReadLines(filePath))
+            {
+                if (line.StartsWith("ID")) continue; // Skip header
+
+                var parts = line.Split(',');
+                if (parts.Length >= 2 &&
+                    int.TryParse(parts[0], out int id) &&
+                    !string.IsNullOrWhiteSpace(parts[1]))
+                {
+                    idToName[id] = parts[1].Trim();
+                }
+            }
+
             // 1. Check if running as Administrator
             if (!IsAdministrator())
             {
@@ -67,6 +87,7 @@ namespace EldenRingMemoryReader
 
             // actual offsets fo HP
             int[] HPoffsets = new int[] { 0x10EF8, 0x0, 0x190, 0x0, 0x138 };
+            int[] maxHPoffsets = new int[] { 0x10EF8, 0x0, 0x190, 0x0, 0x13C };
             int[] GRoffsets = new int[] { 0x08, 0xFF };
             int[] Deathoffsets = new int[] { 0x94 };
             int[] nameOffsets = new int[] { 0x08 };
@@ -104,6 +125,27 @@ namespace EldenRingMemoryReader
             ulong trimmed = currentHPPtr & 0x0000000000FFFFFF;
             
             Console.WriteLine($"HP: {trimmed}");
+
+            ulong currentMaxHPPtr = (ulong)basePtrWCM;
+            foreach (int offset in maxHPoffsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentMaxHPPtr + (uint)offset);
+
+                currentMaxHPPtr = ReadPointer64FromMemory(hProcess, readAddr);
+
+                if (currentMaxHPPtr == 0)
+                {
+                    //Console.WriteLine("Pointer chain broken.");
+                    break;
+                }
+
+                //Console.WriteLine($"Next pointer: 0x{currentHPPtr:X}");
+            }
+
+            // Mask to remove sign-extension junk if needed (keep lower 48 bits)
+            ulong trimmedMaxHp = currentMaxHPPtr & 0x0000000000FFFFFF;
+
+            Console.WriteLine($"Max HP: {trimmedMaxHp}");
 
             ulong currentGRPtr = (ulong)basePtrGDM;
             foreach (int offset in GRoffsets)
@@ -221,6 +263,180 @@ namespace EldenRingMemoryReader
             ulong trimmedRunes = currentRunesPtr & 0x00000000FFFFFFFF;
 
             Console.WriteLine($"Runes: {trimmedRunes}");
+
+            // Read Class
+            int[] classOffsets = new int[] { 0x08, 0xBF };
+            ulong currentClassPtr = (ulong)basePtrGDM;
+            foreach (int offset in classOffsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentClassPtr + (uint)offset);
+                //Console.WriteLine($"Reading {currentClassPtr.ToString("X")} + {offset.ToString("X")} at 0x{readAddr.ToString("X")}");
+
+                currentClassPtr = ReadPointer64FromMemory(hProcess, readAddr);
+
+                if (currentClassPtr == 0)
+                {
+                    //Console.WriteLine("Pointer chain broken.");
+                    break;
+                }
+
+                //Console.WriteLine($"Next pointer: 0x{currentClassPtr:X}");
+            }
+            // Mask to remove sign-extension junk if needed (keep lower 16 bits)
+            ulong trimmedClass = currentClassPtr & 0x000000000000FFFF;
+
+            // Map to class name
+            string[] classNames = new string[]
+            {
+                "Vagabond", "Warrior", "Hero", "Bandit",
+                "Astrologer", "Prophet", "Confessor", "Samurai",
+                "Prisoner", "Wretch"
+            };
+
+            string resolvedClass = trimmedClass < (ulong)classNames.Length
+                ? classNames[trimmedClass]
+                : "Unknown";
+
+            Console.WriteLine($"Class: {resolvedClass}");
+
+            // Read Class
+            int[] sexOffsets = new int[] { 0x08, 0xBE };
+            ulong currentSexPtr = (ulong)basePtrGDM;
+            foreach (int offset in sexOffsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentSexPtr + (uint)offset);
+
+                currentSexPtr = ReadPointer64FromMemory(hProcess, readAddr);
+
+                if (currentClassPtr == 0)
+                {
+                    Console.WriteLine("Pointer chain broken.");
+                    break;
+                }
+            }
+            // Mask to remove sign-extension junk if needed (keep lower 16 bits)
+            ulong trimmedSex = currentSexPtr & 0x000000000000FFFF;
+
+            // Map to class name
+            string[] sexNames = new string[]
+            {
+                "Female", "Male"
+            };
+
+            string resolvedSex = trimmedSex < (ulong)sexNames.Length
+                ? sexNames[trimmedSex]
+                : "Unknown";
+
+            Console.WriteLine($"Gender: {resolvedSex}");
+
+            //Last known location
+            ulong currentLocPtr = (ulong)moduleBase + 0x3D69918;
+            currentLocPtr = ReadPointer64FromMemory(hProcess, (IntPtr)currentLocPtr);
+            currentLocPtr = ReadPointer64FromMemory(hProcess, (IntPtr)currentLocPtr + 0xB60);
+            ulong trimmedLoc = currentLocPtr;// & 0x00000000FFFFFFFF;
+            
+            if (LocationData.LocationMap.TryGetValue((long)trimmedLoc, out var locationName))
+            {
+                Console.WriteLine($"Location: {locationName}");
+            }
+            else
+            {
+                Console.WriteLine("Location: Unknown");
+            }
+
+            // Read Equiped Weapon Slot
+            int[] equipWepSlotOffsets = new int[] { 0x08, 0x32C };
+            ulong currentEWSPtr = (ulong)basePtrGDM;
+            foreach (int offset in equipWepSlotOffsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentEWSPtr + (uint)offset);
+
+                currentEWSPtr = ReadPointer64FromMemory(hProcess, readAddr);
+
+            }
+            // Mask to remove sign-extension junk if needed (keep lower 16 bits)
+            ulong trimmedEWS = currentEWSPtr & 0x000000000000FFFF;
+
+            // Map to class name
+            string[] EWSNames = new string[]
+            {
+                "Primary", "Secondary", "Tertiary"
+            };
+
+            string resolvedEWS = trimmedEWS < (ulong)EWSNames.Length
+                ? EWSNames[trimmedEWS]
+                : "Unknown";
+
+            Console.WriteLine($"Weapon in use: {resolvedEWS}");
+
+            // Read Equiped Weapon 1
+            int[] equipWep1Offsets = new int[] { 0x08, 0x39C };
+            ulong currentwep1Ptr = (ulong)basePtrGDM;
+            foreach (int offset in equipWep1Offsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentwep1Ptr + (uint)offset);
+
+                currentwep1Ptr = ReadPointer64FromMemory(hProcess, readAddr);
+
+            }
+            // Mask to remove sign-extension junk if needed (keep lower 16 bits)
+            ulong trimmedWep1 = currentwep1Ptr & 0x00000000FFFFFFFF;
+            //Console.WriteLine($"Primary Weapon: {trimmedWep1}");
+
+            // Read Equiped Weapon 2
+            int[] equipWep2Offsets = new int[] { 0x08, 0x3A4 };
+            ulong currentwep2Ptr = (ulong)basePtrGDM;
+            foreach (int offset in equipWep2Offsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentwep2Ptr + (uint)offset);
+
+                currentwep2Ptr = ReadPointer64FromMemory(hProcess, readAddr);
+
+            }
+            // Mask to remove sign-extension junk if needed (keep lower 16 bits)
+            ulong trimmedWep2 = currentwep2Ptr & 0x00000000FFFFFFFF;
+            //Console.WriteLine($"Secondary Weapon: {trimmedWep2}");
+
+            // Read Equiped Weapon Slot
+            int[] equipWep3Offsets = new int[] { 0x08, 0x3AC };
+            ulong currentwep3Ptr = (ulong)basePtrGDM;
+            foreach (int offset in equipWep3Offsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentwep3Ptr + (uint)offset);
+
+                currentwep3Ptr = ReadPointer64FromMemory(hProcess, readAddr);
+
+            }
+            // Mask to remove sign-extension junk if needed (keep lower 16 bits)
+            ulong trimmedWep3 = currentwep3Ptr & 0x00000000FFFFFFFF;
+            //Console.WriteLine($"Tertiary Weapon: {trimmedWep3}");
+
+            if (idToName.TryGetValue((int)trimmedWep1, out string name))
+            {
+                Console.WriteLine($"Primary Weapon: {name}");
+            }
+            else
+            {
+                Console.WriteLine("Primary Weapon: Unknown Weapon");
+            }
+
+            if (idToName.TryGetValue((int)trimmedWep2, out string name2))
+            {
+                Console.WriteLine($"Secondary Weapon: {name2}");
+            }
+            else
+            {
+                Console.WriteLine("Secondary Weapon: Unknown Weapon");
+            }
+
+            if (idToName.TryGetValue((int)trimmedWep3, out string name3))
+            {
+                Console.WriteLine($"Tertiary Weapon: {name3}");
+            }
+            else
+            {
+                Console.WriteLine("Tertiary Weapon: Unknown Weapon");
+            }
 
             // 5. Cleanup
             CloseHandle(hProcess);
