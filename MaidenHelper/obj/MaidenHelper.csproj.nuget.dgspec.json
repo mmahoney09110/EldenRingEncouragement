@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\MahoneyPC\\source\\repos\\MaidenHelper\\MaidenHelper\\MaidenHelper.csproj": {}
+    "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\MaidenHelper.csproj": {}
   },
   "projects": {
-    "C:\\Users\\MahoneyPC\\source\\repos\\MaidenHelper\\MaidenHelper\\MaidenHelper.csproj": {
+    "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\MaidenHelper.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\MahoneyPC\\source\\repos\\MaidenHelper\\MaidenHelper\\MaidenHelper.csproj",
+        "projectUniqueName": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\MaidenHelper.csproj",
         "projectName": "MaidenHelper",
-        "projectPath": "C:\\Users\\MahoneyPC\\source\\repos\\MaidenHelper\\MaidenHelper\\MaidenHelper.csproj",
+        "projectPath": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\MaidenHelper.csproj",
         "packagesPath": "C:\\Users\\MahoneyPC\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\MahoneyPC\\source\\repos\\MaidenHelper\\MaidenHelper\\obj\\",
+        "outputPath": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using System.Text;
 
 namespace EldenRingMemoryReader
 {
@@ -17,6 +18,14 @@ namespace EldenRingMemoryReader
 
         [DllImport("kernel32.dll")]
         public static extern bool CloseHandle(IntPtr hObject);
+
+        public static byte[] ReadBytesFromMemory(IntPtr hProcess, IntPtr address, int length)
+        {
+            byte[] buffer = new byte[length];
+            ReadProcessMemory(hProcess, address, buffer, buffer.Length, out int bytesRead);
+            return buffer;
+        }
+
 
         const int PROCESS_VM_READ = 0x0010;
         const int PROCESS_QUERY_INFORMATION = 0x0400;
@@ -57,34 +66,161 @@ namespace EldenRingMemoryReader
             }
 
             // actual offsets fo HP
-            int[] offsets = new int[] { 0x10EF8, 0x0, 0x190, 0x0, 0x138 };
+            int[] HPoffsets = new int[] { 0x10EF8, 0x0, 0x190, 0x0, 0x138 };
+            int[] GRoffsets = new int[] { 0x08, 0xFF };
+            int[] Deathoffsets = new int[] { 0x94 };
+            int[] nameOffsets = new int[] { 0x08 };
+            int[] levelOffsets = new int[] { 0x08, 0x68 };
             Console.WriteLine($"Module base: 0x{moduleBase.ToString("X")}");
             IntPtr worldChrManAddress = moduleBase + 0x3D65F88;
-            Console.WriteLine($"Base pointer address: 0x{worldChrManAddress.ToString("X")}");
-            ulong basePtr = ReadPointer64FromMemory(hProcess, worldChrManAddress);
-            Console.WriteLine($"Base pointer address contains: 0x{basePtr.ToString("X")}");
-            
-            ulong currentPtr = (ulong)basePtr;
-            foreach (int offset in offsets)
+            IntPtr gameDataMan = moduleBase + 0x3D5DF38;
+
+            Console.WriteLine($"Base HP pointer address: 0x{worldChrManAddress.ToString("X")}");
+            Console.WriteLine($"Base GR pointer address: 0x{gameDataMan.ToString("X")}");
+
+            ulong basePtrWCM = ReadPointer64FromMemory(hProcess, worldChrManAddress);
+            ulong basePtrGDM = ReadPointer64FromMemory(hProcess, gameDataMan);
+            Console.WriteLine($"Base HP pointer address contains: 0x{basePtrWCM.ToString("X")}");
+            Console.WriteLine($"Base GR pointer address contains: 0x{basePtrGDM.ToString("X")}");
+
+            ulong currentHPPtr = (ulong)basePtrWCM;
+            foreach (int offset in HPoffsets)
             {
-                IntPtr readAddr = (IntPtr)(currentPtr + (uint)offset);
-                Console.WriteLine($"Reading pointer at 0x{readAddr.ToString("X")}");
+                IntPtr readAddr = (IntPtr)(currentHPPtr + (uint)offset);
+                //Console.WriteLine($"Reading pointer at 0x{readAddr.ToString("X")}");
 
-                currentPtr = ReadPointer64FromMemory(hProcess, readAddr);
+                currentHPPtr = ReadPointer64FromMemory(hProcess, readAddr);
 
-                if (currentPtr == 0)
+                if (currentHPPtr == 0)
                 {
-                    Console.WriteLine("Pointer chain broken.");
+                    //Console.WriteLine("Pointer chain broken.");
                     break;
                 }
 
-                Console.WriteLine($"Next pointer: 0x{currentPtr:X}");
+                //Console.WriteLine($"Next pointer: 0x{currentHPPtr:X}");
             }
 
             // Mask to remove sign-extension junk if needed (keep lower 48 bits)
-            ulong trimmed = currentPtr & 0x0000000000FFFFFF;
+            ulong trimmed = currentHPPtr & 0x0000000000FFFFFF;
             
             Console.WriteLine($"HP: {trimmed}");
+
+            ulong currentGRPtr = (ulong)basePtrGDM;
+            foreach (int offset in GRoffsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentGRPtr + (uint)offset);
+                //Console.WriteLine($"Reading {currentGRPtr.ToString("X")} + {offset.ToString("X")} at 0x{readAddr.ToString("X")}");
+
+                currentGRPtr = ReadPointer64FromMemory(hProcess, readAddr);
+
+                if (currentGRPtr == 0)
+                {
+                    //Console.WriteLine("Pointer chain broken.");
+                    break;
+                }
+
+                //Console.WriteLine($"Next pointer: 0x{currentGRPtr:X}");
+            }
+
+            // Mask to remove sign-extension junk if needed (keep lower 48 bits)
+            ulong trimmedGR = currentGRPtr & 0x000000000000FFFF;
+
+            Console.WriteLine($"Great Rune Active?: {trimmedGR}");
+
+            ulong currentDeathPtr = (ulong)basePtrGDM;
+            foreach (int offset in Deathoffsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentDeathPtr + (uint)offset);
+                //Console.WriteLine($"Reading {currentDeathPtr.ToString("X")} + {offset.ToString("X")} at 0x{readAddr.ToString("X")}");
+
+                currentDeathPtr = ReadPointer64FromMemory(hProcess, readAddr);
+
+                if (currentDeathPtr == 0)
+                {
+                    //Console.WriteLine("Pointer chain broken.");
+                    break;
+                }
+
+                //Console.WriteLine($"Next pointer: 0x{currentDeathPtr:X}");
+            }
+
+            // Mask to remove sign-extension junk if needed (keep lower 48 bits)
+            ulong trimmedDeath = currentDeathPtr & 0x0000000000FFFFFF;
+
+            Console.WriteLine($"Death Count: {trimmedDeath}");
+
+            ulong currentNamePtr = (ulong)basePtrGDM;
+            foreach (int offset in nameOffsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentNamePtr + (uint)offset);
+                //Console.WriteLine($"Reading {currentNamePtr.ToString("X")} + {offset.ToString("X")} at 0x{readAddr.ToString("X")}");
+
+                currentNamePtr = ReadPointer64FromMemory(hProcess, readAddr);
+
+                if (currentNamePtr == 0)
+                {
+                    //Console.WriteLine("Pointer chain broken.");
+                    break;
+                }
+
+                //Console.WriteLine($"Next pointer: 0x{currentDeathPtr:X}");
+            }
+
+            // Read name
+            int maxStringLength = 64; // characters
+            int byteLength = maxStringLength * 2; // UTF-16 = 2 bytes per char
+
+            // Read raw memory starting from currentNamePtr
+            byte[] rawStringBytes = ReadBytesFromMemory(hProcess, (IntPtr)(currentNamePtr + 0x9C), byteLength);
+
+            // Look for null terminator (0x00 0x00)
+            int end = 0;
+            for (int i = 0; i < rawStringBytes.Length - 1; i += 2)
+            {
+                if (rawStringBytes[i] == 0x00 && rawStringBytes[i + 1] == 0x00)
+                {
+                    end = i;
+                    break;
+                }
+            }
+            if (end == 0) end = byteLength; // fallback
+
+            // Decode as UTF-16
+            string finalName = Encoding.Unicode.GetString(rawStringBytes, 0, end);
+            Console.WriteLine("Player Name: " + finalName);
+
+            // Read level
+            ulong currentLevelPtr = (ulong)basePtrGDM;
+            foreach (int offset in levelOffsets)
+            {
+                IntPtr readAddr = (IntPtr)(currentLevelPtr + (uint)offset);
+                //Console.WriteLine($"Reading {currentLevelPtr.ToString("X")} + {offset.ToString("X")} at 0x{readAddr.ToString("X")}");
+
+                currentLevelPtr = ReadPointer64FromMemory(hProcess, readAddr);
+
+                if (currentLevelPtr == 0)
+                {
+                    //Console.WriteLine("Pointer chain broken.");
+                    break;
+                }
+
+                //Console.WriteLine($"Next pointer: 0x{currentGRPtr:X}");
+            }
+
+            // Mask to remove sign-extension junk if needed (keep lower 48 bits)
+            ulong trimmedLevel = currentLevelPtr & 0x00000000FFFFFFFF;
+
+            Console.WriteLine($"Player level: {trimmedLevel}");
+
+            // Read level
+            ulong currentRunesPtr = (ulong)moduleBase + 0x03D6B880;
+            currentRunesPtr = ReadPointer64FromMemory(hProcess, (IntPtr)currentRunesPtr);
+            currentRunesPtr = ReadPointer64FromMemory(hProcess, (IntPtr)currentRunesPtr + 0x1128);
+
+            // Mask to remove sign-extension junk if needed (keep lower 48 bits)
+            ulong trimmedRunes = currentRunesPtr & 0x00000000FFFFFFFF;
+
+            Console.WriteLine($"Runes: {trimmedRunes}");
 
             // 5. Cleanup
             CloseHandle(hProcess);
