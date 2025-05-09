@@ -32,7 +32,7 @@
               "RelativeDocumentMoniker": "MaidenHelper\\MaidenReader.cs",
               "ToolTip": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\MaidenHelper\\MaidenReader.cs",
               "RelativeToolTip": "MaidenHelper\\MaidenReader.cs",
-              "ViewState": "AgIAAIIAAAAAAAAAAAAcwIoAAAAfAAAAAAAAAA==",
+              "ViewState": "AgIAABgAAAAAAAAAAAAcwB0AAABEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-05-08T15:47:28.041Z",
               "EditorCaption": ""
@@ -67,10 +67,6 @@
           "DockedHeight": 101,
           "SelectedChildIndex": -1,
           "Children": [
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{007a3a6b-b5b2-454d-a2bd-cf929f989be2}"
-            },
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"

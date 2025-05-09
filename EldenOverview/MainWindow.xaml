@@ -1,0 +1,56 @@
+﻿<Window x:Class="EldenRingOverlay.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MainWindow"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="NoResize"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        WindowState="Maximized">
+
+    <Window.Triggers>
+        <EventTrigger RoutedEvent="Window.Loaded">
+            <BeginStoryboard>
+                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0.99" To="1.0"
+                                     Duration="0:0:1" />
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Window.Triggers>
+
+    <Window.Resources>
+        <DropShadowEffect x:Key="ShadowEffect"
+                      Color="Black"
+                      BlurRadius="5"
+                      Direction="320"
+                      ShadowDepth="2"
+                      Opacity="0.7" />
+  
+        <FontFamily x:Key="MedievalFont">pack://application:,,,/Fonts/#IM FELL English</FontFamily>
+    </Window.Resources>
+
+    <Canvas>
+        <TextBlock x:Name="AIEncouragement"
+           Text="You are not hollow yet..."
+           FontFamily="{StaticResource MedievalFont}"
+           FontSize="28"
+           Foreground="White"
+           TextWrapping="Wrap"
+           Effect="{StaticResource ShadowEffect}" />
+
+
+        <TextBox
+            x:Name="LogTextBox"
+            FontSize="12"
+            Foreground="LightGray"
+            Background="#80000080"
+            IsReadOnly="True"
+            VerticalAlignment="Bottom"
+            Height="150"
+            Margin="10"/>
+    </Canvas>
+</Window>

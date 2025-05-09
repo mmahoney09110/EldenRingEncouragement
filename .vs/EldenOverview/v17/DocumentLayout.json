@@ -1,0 +1,128 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|c:\\users\\mahoneypc\\documents\\eldenringencouragement\\eldenoverview\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|solutionrelative:eldenoverview\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|c:\\users\\mahoneypc\\documents\\eldenringencouragement\\eldenoverview\\maidenreader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|solutionrelative:eldenoverview\\maidenreader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|c:\\users\\mahoneypc\\documents\\eldenringencouragement\\eldenoverview\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|solutionrelative:eldenoverview\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|c:\\users\\mahoneypc\\documents\\eldenringencouragement\\eldenoverview\\assemblyinfo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|solutionrelative:eldenoverview\\assemblyinfo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|c:\\users\\mahoneypc\\documents\\eldenringencouragement\\eldenoverview\\locationdict.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{42199C1E-FAF1-4CDC-A2EB-46AF756ADA1E}|EldenOverview\\EldenEncouragement.csproj|solutionrelative:eldenoverview\\locationdict.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "LocationDict.cs",
+              "DocumentMoniker": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\LocationDict.cs",
+              "RelativeDocumentMoniker": "EldenOverview\\LocationDict.cs",
+              "ToolTip": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\LocationDict.cs",
+              "RelativeToolTip": "EldenOverview\\LocationDict.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-09T02:52:25.26Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "AssemblyInfo.cs",
+              "DocumentMoniker": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\AssemblyInfo.cs",
+              "RelativeDocumentMoniker": "EldenOverview\\AssemblyInfo.cs",
+              "ToolTip": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\AssemblyInfo.cs",
+              "RelativeToolTip": "EldenOverview\\AssemblyInfo.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-09T02:52:17.514Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "MaidenReader.cs",
+              "DocumentMoniker": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\MaidenReader.cs",
+              "RelativeDocumentMoniker": "EldenOverview\\MaidenReader.cs",
+              "ToolTip": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\MaidenReader.cs",
+              "RelativeToolTip": "EldenOverview\\MaidenReader.cs",
+              "ViewState": "AgIAAA4AAAAAAAAAAAAIwB4AAAAwAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-09T02:52:27.66Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainWindow.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\MainWindow.xaml.cs",
+              "RelativeDocumentMoniker": "EldenOverview\\MainWindow.xaml.cs",
+              "ToolTip": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\MainWindow.xaml.cs",
+              "RelativeToolTip": "EldenOverview\\MainWindow.xaml.cs",
+              "ViewState": "AgIAAMoAAAAAAAAAAAAAANgAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-02-11T03:22:58.684Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "MainWindow.xaml",
+              "DocumentMoniker": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\MainWindow.xaml",
+              "RelativeDocumentMoniker": "EldenOverview\\MainWindow.xaml",
+              "ToolTip": "C:\\Users\\MahoneyPC\\Documents\\EldenRingEncouragement\\EldenOverview\\MainWindow.xaml",
+              "RelativeToolTip": "EldenOverview\\MainWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-02-10T23:05:17.312Z",
+              "EditorCaption": ""
+            }
+          ]
+        },
+        {
+          "DockedWidth": 1243,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:7:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:8:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
