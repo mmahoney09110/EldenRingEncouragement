@@ -222,7 +222,7 @@ namespace EldenRingOverlay
             fsTimer.Start();
 
             // get encouragement text
-            var gtTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            var gtTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(300) };
             gtTimer.Tick += async (s, e) =>
             {
                 try
@@ -343,6 +343,7 @@ namespace EldenRingOverlay
 
                     AIEncouragement.Text = sentence;
 
+                    //fade in and out new each sentence
                     await FadeTextBlock(AIEncouragement, fadeIn: true);
                     await Task.Delay(3000);
                     await FadeTextBlock(AIEncouragement, fadeIn: false);
