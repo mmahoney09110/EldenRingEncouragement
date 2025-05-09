@@ -222,7 +222,7 @@ namespace EldenRingOverlay
             fsTimer.Start();
 
             // get encouragement text
-            var gtTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(300) };
+            var gtTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
             gtTimer.Tick += async (s, e) =>
             {
                 try
