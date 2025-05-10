@@ -38,16 +38,16 @@
            HorizontalAlignment="Center"
            VerticalAlignment="Center" />
 
-
+<!--
         <TextBox
             x:Name="LogTextBox"
             FontSize="12"
-            Opacity="0"
+            Opacity="100"
             Foreground="LightGray"
             Background="#80000080"
             IsReadOnly="True"
             VerticalAlignment="Bottom"
             Height="150"
-            Margin="10"/>
+            Margin="10"/>-->
     </Canvas>
 </Window>

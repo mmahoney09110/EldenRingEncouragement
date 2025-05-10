@@ -16,24 +16,47 @@ namespace EldenRingOverlay
 {
     public partial class MainWindow : Window
     {
-        // Periodic “nudge” timer to reassert Topmost
-        private DispatcherTimer topmostNudgeTimer;
-        protected override void OnDeactivated(EventArgs e)
-        {
-            base.OnDeactivated(e);
-
-            // Reassert topmost
-            this.Topmost = false;
-            this.Topmost = true;
-        }
         private DispatcherTimer checkEldenRingTimer;
         private int missingCounter = 0;
         private const int MissingThreshold = 35;
         private double screenWidth;
         private double screenHeight;
-        
-        // PInvoke declarations
+
+        // Win32 constants
+        private const int GWL_EXSTYLE = -20;
+        private const int WS_EX_TRANSPARENT = 0x00000020;
+        private const int WS_EX_NOACTIVATE = 0x08000000;
+        private const int WS_EX_LAYERED = 0x00080000;
+        private const int WS_EX_TOPMOST = 0x00000008;
+
         [DllImport("user32.dll")]
+        static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+
+            var hwnd = new WindowInteropHelper(this).Handle;
+            int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+
+            // Combine flags:
+            // WS_EX_LAYERED   → Allows transparency 
+            // WS_EX_TRANSPARENT → Click-through
+            // WS_EX_NOACTIVATE  → Never take focus
+            // WS_EX_TOPMOST     → Always on top
+            exStyle |= WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE;
+            SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
+
+            // Ensure WPF doesn’t try to activate it
+            ShowActivated = false;
+            Focusable = false;
+        }
+
+            // PInvoke declarations
+            [DllImport("user32.dll")]
         static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
         [DllImport("user32.dll")]
@@ -198,21 +221,33 @@ namespace EldenRingOverlay
         /// <summary>
         /// Sets up the overlay window and starts a timer that checks fullscreen status.
         /// </summary>
+        MaidenReader reader = new MaidenReader();
+        private const int PROCESS_VM_READ = 0x0010;
+        private const int PROCESS_QUERY_INFORMATION = 0x0400;
+        bool positioned = false;
         private void InitializeOverlay()
         {
             // Base overlay setup
             WindowStyle = WindowStyle.None;
-            AllowsTransparency = true;
             Background = Brushes.Transparent;
-            Topmost = true;
+            //Topmost = false;
             bool isFullscreen = false;
             // Fullscreen check every second
-            var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-            fsTimer.Tick += async (s, e) =>
+            var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            fsTimer.Tick += (s, e) =>
             {
                 try
                 {
-                    isFullscreen = await CheckFullscreenStatus();
+                    isFullscreen = CheckFullscreenStatus();
+                    if (isFullscreen && !positioned)
+                    {
+                        PositionOverlayRelativeToGameWindow(new RECT());
+                        positioned = true;
+                    }
+                    else if (!isFullscreen)
+                    {
+                        positioned = false;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -222,7 +257,7 @@ namespace EldenRingOverlay
             fsTimer.Start();
 
             // get encouragement text
-            var gtTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(300) };
+            var gtTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
             gtTimer.Tick += async (s, e) =>
             {
                 try
@@ -240,22 +275,13 @@ namespace EldenRingOverlay
                 }
             };
             gtTimer.Start();
-
-            // Nudge Topmost every 5 seconds
-            topmostNudgeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-            topmostNudgeTimer.Tick += (s, e) =>
-            {
-                this.Topmost = false;
-                this.Topmost = true;
-            };
-            topmostNudgeTimer.Start();
         }
 
         /// <summary>
         /// Checks if the Elden Ring window is in fullscreen mode (using DPI-adjusted screen size) 
         /// and shows or hides the overlay accordingly.
         /// </summary>
-        private async Task<bool> CheckFullscreenStatus()
+        private bool CheckFullscreenStatus()
         {
             var hwnd = FindWindow(null, "ELDEN RING™");
             if (hwnd != IntPtr.Zero && IsWindowVisible(hwnd))
@@ -289,19 +315,16 @@ namespace EldenRingOverlay
                         return true;
                     }
 
-                    // Position relative to the game window when fullscreen
-                    PositionOverlayRelativeToGameWindow(rect);
-
                     // Force overlay to remain topmost
-                    this.Topmost = true;
+                    
+                    //this.Topmost = true;
 
                     return true;
                 }
                 else
                 {
                     AppendLog("Elden Ring is not in fullscreen mode. Hiding overlay.");
-                    if (this.IsVisible)
-                        this.Hide();
+                    
                     return false;
 
 
@@ -310,20 +333,21 @@ namespace EldenRingOverlay
             else
             {
                 AppendLog("Elden Ring window not found, hiding overlay.");
-                if (this.IsVisible) 
-                    this.Hide();
+                
                 return false;
 
             }
         }
-        MaidenReader reader = new MaidenReader();
+        
         private async Task GetEncouragement()
         {
-            string text = await reader.GetEncouragement();
+            string text = await Task.Run(() => reader.GetEncouragement().Result);
 
             // Split on punctuation + *any* whitespace (including newline)
             var sentences = Regex.Split(text, @"(?<=[\.!\?])\s+");
 
+            //this.Topmost = false;
+            //this.Topmost = true;
             if (string.IsNullOrWhiteSpace(text))
             {
                 AIEncouragement.Text = "I'm confused, forgive me...";
@@ -334,20 +358,17 @@ namespace EldenRingOverlay
                 foreach (var raw in sentences)
                 {
                     var sentence = raw.Trim();
-                    if (sentence.Length == 0) continue;
+                    if (sentence == "") continue;
+                    if (!".!?".Contains(sentence[^1])) sentence += ".";
 
-                    // Ensure it ends with its original punctuation
-                    char lastChar = sentence[^1];
-                    if (!".!?".Contains(lastChar))
-                        sentence += ".";
+                    Dispatcher.Invoke(() => AIEncouragement.Text = sentence);
 
-                    AIEncouragement.Text = sentence;
-
-                    //fade in and out new each sentence
                     await FadeTextBlock(AIEncouragement, fadeIn: true);
-                    await Task.Delay(3000);
+                    await Task.Delay(5000);      
                     await FadeTextBlock(AIEncouragement, fadeIn: false);
                 }
+                //this.Topmost = false;
+
             }
         }
 
@@ -384,6 +405,8 @@ namespace EldenRingOverlay
         }
         private void PositionOverlayRelativeToGameWindow(RECT rect)
         {
+            this.Topmost = false;
+            this.Topmost = true;
             // 1) Position and size the window itself
             this.Width = screenWidth * 0.5;
             this.Height = screenHeight;
@@ -403,10 +426,10 @@ namespace EldenRingOverlay
             
 
             // 3) If LogTextBox, position it below the encouragement box:
-            double logX = screenWidth * 0.25;
-            double logY = this.Height * 0.85;
-            Canvas.SetLeft(LogTextBox, logX);
-            Canvas.SetTop(LogTextBox, logY);
+            //double logX = screenWidth * 0.25;
+            //double logY = this.Height * 0.85;
+            //Canvas.SetLeft(LogTextBox, logX);
+            //Canvas.SetTop(LogTextBox, logY);
 
         }
 
@@ -416,14 +439,14 @@ namespace EldenRingOverlay
         /// </summary>
         private void AppendLog(string message)
         {
-            Dispatcher.Invoke(() =>
-            {
-                if (LogTextBox != null)
-                {
-                    LogTextBox.AppendText(message + Environment.NewLine);
-                    LogTextBox.ScrollToEnd(); // Auto-scroll to the latest log
-                }
-            });
+            //Dispatcher.Invoke(() =>
+            //{
+            //    if (LogTextBox != null)
+            //    {
+            //        LogTextBox.AppendText(message + Environment.NewLine);
+            //        LogTextBox.ScrollToEnd(); // Auto-scroll to the latest log
+            //    }
+            //});
         }
 
     }

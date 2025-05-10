@@ -48,7 +48,7 @@ namespace EldenEncouragement
 
             using var HttpClient = new HttpClient();
 
-            var response = await HttpClient.PostAsync("https://localhost:7009/api/response", content);
+            var response = await HttpClient.PostAsync("https://openai-proxy-server-vo9f.onrender.com/api/response", content);
 
             if (response.IsSuccessStatusCode)
             {
@@ -59,7 +59,7 @@ namespace EldenEncouragement
             return $"Error: {response.StatusCode}";
         }
 
-        private static Process FindProcess(string name)
+        public Process FindProcess(string name)
         {
             var proc = Process.GetProcessesByName(name).FirstOrDefault();
             if (proc == null)
@@ -107,7 +107,6 @@ namespace EldenEncouragement
 
         public async Task<string> PrintPlayerStats(Addresses.AddressesSet addrs, Dictionary<int, string> idToName)
         {
-            //await Task.Delay(30000); // 30 second non-blocking delay
             int w1 = (int)ReadChain(addrs.Weapon1Offsets);
             int w2 = (int)ReadChain(addrs.Weapon2Offsets);
             int w3 = (int)ReadChain(addrs.Weapon3Offsets);

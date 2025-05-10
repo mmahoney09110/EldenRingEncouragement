@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("EldenEncouragement")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e19d04e55b7202091618423bfb6cb894382ebe00")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1c4b42061101092396c2a1a7ebc60a5ba95eca89")]
 [assembly: System.Reflection.AssemblyProductAttribute("EldenEncouragement")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EldenEncouragement")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
