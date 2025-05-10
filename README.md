@@ -34,6 +34,7 @@ A C# project that reads in-game values like HP from Elden Ring's memory and plan
 ## Future Roadmap
 
 - Add memory reads for additional stats (e.g., Stamina, FP, Position)
+- Dynamic API calls (currently calls every 60 seconds rather than when an event happens)
 - Voice synthesis integration
 
 ## !!!Disclaimer!!!
