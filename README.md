@@ -9,36 +9,32 @@ A C# project that reads in-game values like HP from Elden Ring's memory and plan
   
 - Handles module base address resolution and offset calculation.
   
-- No EAC (Easy Anti-Cheat) support – must be run offline.
+- Integration with an LLM (OpenAI API) to impersonate an in-game maiden, commenting and encouraging the player.
   
-- Requires Administrator privileges.
-  
-- Planned: Integration with an LLM (e.g., ChatGPT) to impersonate an in-game maiden, commenting and encouraging the player.
-  
-- Planned: WPF overlay displaying messages in real-time over Elden Ring.
+- WPF overlay displaying messages in real-time over Elden Ring.
+
+- Overlay does not display and no API call are made while elden ring is not full screen
+
+- Auto closes when elden ring is no longer detected.
   
 
 ## Current State
 
-Successfully retrieves HP from Elden Ring’s memory using pointer path:
-```
-[ModuleBase] + 0x3D65F88 → WorldChrMan Base Pointer → +0x10EF8 → +0x0 → +0x190 → +0x0 → +0x138
-```
+- Successfully retrieves stats from Elden Ring’s memory using pointer path.
+- Integrated with WPF to overlay AI messages over the game.
+- Makes calls to server I made at https://github.com/mmahoney09110/OpenAI-Proxy-Server
 
 ## 🛠 Setup
 
 1. Run Elden Ring in **offline mode** (disable EAC).
 2. Open the project in Visual Studio.
 3. Run as Administrator.
-4. Readings (like HP) will be logged to the console.
+4. Readings (like HP) will be logged set to LLM and be given response back via overlay subtitles.
 
 ## Future Roadmap
 
 - Add memory reads for additional stats (e.g., Stamina, FP, Position)
-- Send stat data to an LLM endpoint (e.g., OpenAI API)
-- Create an AI personality that acts as your Maiden
-- Build a WPF overlay to display dialogue and status updates
-- Optional voice synthesis integration
+- Voice synthesis integration
 
 ## !!!Disclaimer!!!
 
