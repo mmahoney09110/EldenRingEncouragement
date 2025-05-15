@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.IO;
+using System.Media;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text.RegularExpressions;
@@ -18,6 +19,7 @@ namespace EldenRingOverlay
     {
         private DispatcherTimer checkEldenRingTimer;
         private int missingCounter = 0;
+        private bool speaking = false;
         private const int MissingThreshold = 35;
         private double screenWidth;
         private double screenHeight;
@@ -35,6 +37,8 @@ namespace EldenRingOverlay
         [DllImport("user32.dll")]
         static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        public static extern bool AllocConsole();
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -77,6 +81,7 @@ namespace EldenRingOverlay
         public MainWindow()
         {
             EnsureAdministrator();
+            AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
             GetScreenSize();
@@ -127,14 +132,14 @@ namespace EldenRingOverlay
         {
             // Get the overlay's directory (e.g. "C:\Games\ELDEN RING\Game\SoulWeapon\")
             string overlayDir = AppDomain.CurrentDomain.BaseDirectory;
-            AppendLog($"Overlay directory: {overlayDir}");
+            Console.WriteLine($"Overlay directory: {overlayDir}");
 
             // Trim trailing directory separators so GetParent returns the correct parent
             overlayDir = overlayDir.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
 
             // Get the parent directory (should be "C:\Games\ELDEN RING\Game")
             string parentDir = Directory.GetParent(overlayDir)?.FullName;
-            AppendLog($"Parent directory: {parentDir}");
+            Console.WriteLine($"Parent directory: {parentDir}");
             if (parentDir == null)
             {
                 MessageBox.Show("Failed to determine Elden Ring directory.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -157,7 +162,7 @@ namespace EldenRingOverlay
                 if (File.Exists(batFile))
                 {
                     hasLaunchFiles++;
-                    AppendLog("Attempting to launch Elden Ring");
+                    Console.WriteLine("Attempting to launch Elden Ring");
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = batFile,
@@ -171,7 +176,7 @@ namespace EldenRingOverlay
                 if (File.Exists(exeFile))
                 {
                     //hasLaunchFiles++;
-                    AppendLog("Attempting to launch Elden Ring with exe file");
+                    Console.WriteLine("Attempting to launch Elden Ring with exe file");
                     Process.Start(new ProcessStartInfo { FileName = exeFile, UseShellExecute = true });
                     await Task.Delay(10000); // Increased delay for safety
                     if (IsEldenRingRunning()) return;
@@ -222,8 +227,6 @@ namespace EldenRingOverlay
         /// Sets up the overlay window and starts a timer that checks fullscreen status.
         /// </summary>
         MaidenReader reader = new MaidenReader();
-        private const int PROCESS_VM_READ = 0x0010;
-        private const int PROCESS_QUERY_INFORMATION = 0x0400;
         bool positioned = false;
         private void InitializeOverlay()
         {
@@ -231,47 +234,95 @@ namespace EldenRingOverlay
             WindowStyle = WindowStyle.None;
             Background = Brushes.Transparent;
             //Topmost = false;
+
+            DateTime lastEventTime = DateTime.MinValue;
             bool isFullscreen = false;
+
+            // Read interval from settings.ini
+            int intervalESeconds = 300; // default
+            var iniLines = File.ReadAllLines("settings.ini");
+            foreach (var line in iniLines)
+            {
+                if (line.Trim().StartsWith("AIEventResponse="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (int.TryParse(value, out int result))
+                        intervalESeconds = Math.Max(60, result); // Ensure 60 second or more
+                    break;
+                }
+            }
             // Fullscreen check every second
-            var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-            fsTimer.Tick += (s, e) =>
+            var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            fsTimer.Tick += async (s, e) =>
             {
                 try
                 {
                     isFullscreen = CheckFullscreenStatus();
                     if (isFullscreen && !positioned)
                     {
+                        Console.WriteLine("Elden Ring is in fullscreen mode. Positioning overlay.");
                         PositionOverlayRelativeToGameWindow(new RECT());
                         positioned = true;
                     }
                     else if (!isFullscreen)
                     {
+                        Console.WriteLine("Elden Ring is not in fullscreen mode. Hiding overlay.");
                         positioned = false;
+                    }
+                    if (isFullscreen && (DateTime.Now - lastEventTime).TotalSeconds >= intervalESeconds && speaking == false)
+                    {
+                        speaking = true;
+                        bool spoke = await GetEvent();
+                        if (spoke)
+                        {
+                            lastEventTime = DateTime.Now;
+                        }
+                    }
+                    else if(isFullscreen)
+                    {
+                        await reader.UpdateEvent();
                     }
                 }
                 catch (Exception ex)
                 {
-                    AppendLog($"Error in fullscreen check: {ex.Message}");
+                    Console.WriteLine($"Error in fullscreen check: {ex.Message}");
                 }
             };
             fsTimer.Start();
 
+            // Read interval from settings.ini
+            int intervalSeconds = 300; // default
+            foreach (var line in iniLines)
+            {
+                if (line.Trim().StartsWith("AIGeneralResponse="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (int.TryParse(value, out int result))
+                        intervalSeconds = Math.Max(300, result); // Ensure 300 second or more
+                    break;
+                }
+            }
             // get encouragement text
-            var gtTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
+            var gtTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(intervalSeconds) };
             gtTimer.Tick += async (s, e) =>
             {
                 try
                 {
                     if (!isFullscreen)
                     {
-                        AppendLog("Elden Ring is not in fullscreen mode. Skipping encouragement text.");
+                        Console.WriteLine("Elden Ring is not in fullscreen mode. Skipping encouragement text.");
                         return;
                     }
-                    await GetEncouragement();
+                    if (!speaking)
+                    {
+                        speaking = true;
+                        await GetEncouragement();
+                        return;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    AppendLog($"Error in fullscreen check: {ex.Message}");
+                    Console.WriteLine($"Error in fullscreen check: {ex.Message}");
                 }
             };
             gtTimer.Start();
@@ -301,16 +352,16 @@ namespace EldenRingOverlay
                 double physicalScreenWidth = SystemParameters.PrimaryScreenWidth * dpiFactorX;
                 double physicalScreenHeight = SystemParameters.PrimaryScreenHeight * dpiFactorY;
 
-                AppendLog($"Checking fullscreen: Window size: {windowWidth} x {windowHeight}");
-                AppendLog($"Physical screen size: {physicalScreenWidth} x {physicalScreenHeight}");
+                Console.WriteLine($"Checking fullscreen: Window size: {windowWidth} x {windowHeight}");
+                Console.WriteLine($"Physical screen size: {physicalScreenWidth} x {physicalScreenHeight}");
 
                 // Check if the game is in fullscreen mode
                 if (windowWidth == physicalScreenWidth && windowHeight == physicalScreenHeight)
                 {
-                    AppendLog("Elden Ring is in fullscreen mode.");
+                    //Console.WriteLine("Elden Ring is in fullscreen mode.");
                     if (!this.IsVisible)
                     {
-                        AppendLog("Showing overlay.");
+                        Console.WriteLine("Showing overlay.");
                         this.Show();
                         return true;
                     }
@@ -323,8 +374,8 @@ namespace EldenRingOverlay
                 }
                 else
                 {
-                    AppendLog("Elden Ring is not in fullscreen mode. Hiding overlay.");
-                    
+                    Console.WriteLine("Elden Ring is not in fullscreen mode. Hiding overlay.");
+                    //this.Hide();
                     return false;
 
 
@@ -332,8 +383,8 @@ namespace EldenRingOverlay
             }
             else
             {
-                AppendLog("Elden Ring window not found, hiding overlay.");
-                
+                Console.WriteLine("Elden Ring window not found, hiding overlay.");
+                //this.Hide();
                 return false;
 
             }
@@ -341,7 +392,7 @@ namespace EldenRingOverlay
         
         private async Task GetEncouragement()
         {
-            string text = await Task.Run(() => reader.GetEncouragement().Result);
+            string text = await reader.GetEncouragement();
 
             // Split on punctuation + *any* whitespace (including newline)
             var sentences = Regex.Split(text, @"(?<=[\.!\?])\s+");
@@ -351,10 +402,13 @@ namespace EldenRingOverlay
             if (string.IsNullOrWhiteSpace(text))
             {
                 AIEncouragement.Text = "I'm confused, forgive me...";
-                AppendLog("Failed to read encouragement text.");
+                Console.WriteLine("Failed to read encouragement text.");
             }
             else
             {
+                this.Topmost = false;
+                this.Topmost = true;
+                bool playSpecial = true;
                 foreach (var raw in sentences)
                 {
                     var sentence = raw.Trim();
@@ -363,13 +417,112 @@ namespace EldenRingOverlay
 
                     Dispatcher.Invoke(() => AIEncouragement.Text = sentence);
 
+                    Random r = new Random();
+                    int fileNumber = r.Next(2, 6);
+                    string wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
+                    // play random of 5 files when speaking
+                    if (playSpecial)
+                    {
+                        playSpecial = false;
+                        wavFilePath = $@"Audio\melina_general_{fileNumber}.wav";
+                    }
+                    else
+                    {
+                        wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
+                    }
+
+                    if (File.Exists(wavFilePath))
+                    {
+                        var player = new SoundPlayer(wavFilePath);
+                        player.Play();
+                    }
+
                     await FadeTextBlock(AIEncouragement, fadeIn: true);
                     await Task.Delay(5000);      
                     await FadeTextBlock(AIEncouragement, fadeIn: false);
                 }
-                //this.Topmost = false;
-
+                speaking = false;
             }
+        }
+
+        private async Task<bool> GetEvent()
+        {
+            string[] text = await reader.GetEvent();
+
+            // If we only got one element back, there was no "real" event
+            if (text.Length < 2 || text[0] == "No changes detected.")
+            {
+                speaking = false;
+                return false;
+            }
+
+            // Split on punctuation + *any* whitespace (including newline)
+            var sentences = Regex.Split(text[0], @"(?<=[\.!\?])\s+");
+            var sentiment = text[1];
+
+            if (string.IsNullOrWhiteSpace(text[0]))
+            {
+                AIEncouragement.Text = "I'm confused, forgive me...";
+                Console.WriteLine("Failed to read event text.");
+            }
+            else
+            {
+                this.Topmost = false;
+                this.Topmost = true;
+                var playSpecial = true;
+                foreach (var raw in sentences)
+                {
+                    var sentence = raw.Trim();
+                    if (sentence == "") continue;
+                    if (!".!?".Contains(sentence[^1])) sentence += ".";
+
+                    Dispatcher.Invoke(() => AIEncouragement.Text = sentence);
+
+                    Random r = new Random();
+                    int fileNumber = r.Next(1, 6);
+                    string wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
+                    // play random of 5 files when speaking
+                    if (playSpecial)
+                    {
+                        playSpecial = false;
+                        wavFilePath = $@"Audio\melina_{sentiment}_{fileNumber}.wav";
+                    }
+                    else
+                    {
+                        wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
+                    }
+
+                    if (File.Exists(wavFilePath))
+                    {
+                        var player = new SoundPlayer(wavFilePath);
+                        player.Play(); 
+                    }
+
+                    await FadeTextBlock(AIEncouragement, fadeIn: true);
+                    await Task.Delay(5000);
+                    await FadeTextBlock(AIEncouragement, fadeIn: false);
+                }
+                speaking = false;
+            }
+            return true;
+        }
+
+        private async Task Welcome()
+        {
+            string text = "Welcome back, tarnished";
+
+            Dispatcher.Invoke(() => AIEncouragement.Text = text);
+
+            if (File.Exists(@"Audio\melina_general_1.wav"))
+            {
+                var player = new SoundPlayer(@"Audio\melina_general_1.wav");
+                player.Play();
+            }
+
+            await FadeTextBlock(AIEncouragement, fadeIn: true);
+            await Task.Delay(3000);
+            await FadeTextBlock(AIEncouragement, fadeIn: false);
+
         }
 
         async Task FadeTextBlock(TextBlock tb, bool fadeIn, double duration = 500)
@@ -403,7 +556,7 @@ namespace EldenRingOverlay
             screenHeight = SystemParameters.PrimaryScreenHeight * dpiFactorY;
 
         }
-        private void PositionOverlayRelativeToGameWindow(RECT rect)
+        private async void PositionOverlayRelativeToGameWindow(RECT rect)
         {
             this.Topmost = false;
             this.Topmost = true;
@@ -414,7 +567,7 @@ namespace EldenRingOverlay
             this.Left = screenWidth * 0.27;
             this.Top = rect.Top;
 
-            AppendLog("Overlay positioned relative to the game window.");
+            Console.WriteLine("Overlay positioned relative to the game window.");
 
             // 2) Position the AIEncouragement TextBox inside the window: here it 50% from the left and 88% from the top of the overlay
             double centerX = screenWidth * 0.27;
@@ -423,31 +576,9 @@ namespace EldenRingOverlay
             AIEncouragement.Width = this.Width;
             Canvas.SetLeft(AIEncouragement, centerX);
             Canvas.SetTop(AIEncouragement, bottomY);
-            
 
-            // 3) If LogTextBox, position it below the encouragement box:
-            //double logX = screenWidth * 0.25;
-            //double logY = this.Height * 0.85;
-            //Canvas.SetLeft(LogTextBox, logX);
-            //Canvas.SetTop(LogTextBox, logY);
+           await Welcome();
 
         }
-
-
-        /// <summary>
-        /// Logs messages to the TextBox for debugging.
-        /// </summary>
-        private void AppendLog(string message)
-        {
-            //Dispatcher.Invoke(() =>
-            //{
-            //    if (LogTextBox != null)
-            //    {
-            //        LogTextBox.AppendText(message + Environment.NewLine);
-            //        LogTextBox.ScrollToEnd(); // Auto-scroll to the latest log
-            //    }
-            //});
-        }
-
     }
 }

@@ -10,13 +10,6 @@
 
   <ItemGroup>
     <None Remove="Fonts\IMFellEnglish.ttf" />
-    <None Remove="Resources\macro.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Resources\macro.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -24,11 +17,28 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Include the CSV in the build and copy it to output -->
     <None Include="Weapon_IDs.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <ItemGroup>
+  <None Include="Audio\**\*.*">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
+
+<ItemGroup>
+  <None Include="settings.ini">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
+
+<ItemGroup>
+  <None Include="saved_stats.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
 
   <ItemGroup>
     <Resource Include="Fonts\IMFellEnglish.ttf">

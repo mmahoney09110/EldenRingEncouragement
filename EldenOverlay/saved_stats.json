@@ -1,0 +1,28 @@
+{
+  "prevStats": [
+    2572,
+    2620,
+    1,
+    29,
+    153,
+    5710
+  ],
+  "prevLocation": "Lake-Facing Cliffs",
+  "prevWeapon": "Partisan",
+  "prevWeapon2": "Unarmed",
+  "prevWeapon3": "Unarmed",
+  "visitedLocations": [
+    "Farum Greatbridge",
+    "Agheel Lake North",
+    "Lake-Facing Cliffs"
+  ],
+  "prevWeapons": [
+    "Heavy Mace",
+    "Unarmed",
+    "Bloodhound\u0027s Fang",
+    "Knight\u0027s Greatsword",
+    "Unknown Weapon",
+    "Pike",
+    "Partisan"
+  ]
+}

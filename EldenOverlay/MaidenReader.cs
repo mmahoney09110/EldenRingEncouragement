@@ -1,13 +1,28 @@
-﻿using System.Diagnostics;
+﻿using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
+using System.Text.Json;
 using LocationDict;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace EldenEncouragement
 {
+    public class Changes
+    {
+        public double[] prevStats { get; set; }
+        public string prevLocation { get; set; } = "";
+        public string prevWeapon { get; set; } = "";
+        public string prevWeapon2 { get; set; } = "";
+        public string prevWeapon3 { get; set; } = "";
+        public HashSet<string> visitedLocations { get; set; } = new();
+        public HashSet<string> prevWeapons { get; set; } = new();
+
+    }
 
     internal class MaidenReader
     {
@@ -18,25 +33,69 @@ namespace EldenEncouragement
         public async Task<string> GetEncouragement()
         {
             try
-            {   
+            {
                 var process = FindProcess("eldenring");
                 using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
                 var idToName = WeaponLoader.LoadIds("Weapon_IDs.csv");
                 var addresses = Addresses.GetAddresses();
-                
-                string stats = reader.PrintPlayerStats(addresses, idToName).Result;
+
+                string stats = await reader.PrintPlayerStats(addresses, idToName);
                 var body = (prevStats + "\n" + "Current stats:\n" + stats);
                 prevStats = "Last sent stats:\n" + stats;
-                    
+
                 return await SendBodyAsync(body);
-                
+
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
                 return "Im confused, tarnished, forgive me.";
             }
-            
+
+        }
+        public async Task UpdateEvent()
+        {
+            try
+            {
+                var process = FindProcess("eldenring");
+                using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
+                var idToName = WeaponLoader.LoadIds("Weapon_IDs.csv");
+                var addresses = Addresses.GetAddresses();
+                await reader.GetChangedStats(addresses, idToName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+        }
+
+        public async Task<string[]> GetEvent()
+        {
+            try
+            {
+                var process = FindProcess("eldenring");
+                using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
+                var idToName = WeaponLoader.LoadIds("Weapon_IDs.csv");
+                var addresses = Addresses.GetAddresses();
+
+                string[] changed = await reader.GetChangedStats(addresses, idToName);
+
+                if (changed.Length < 2 || changed[0] == "No changes detected." || changed[0] == "Initial stats assigned.")
+                {
+                    return new string[] { "No changes detected." };
+                }
+                else
+                { 
+                    return new string[] { await SendBodyAsync(changed[0]), changed[1] };
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return new string[] { "Im confused, tarnished, forgive me." };
+            }
+
         }
 
         public static async Task<string> SendBodyAsync(string bodyValue)
@@ -64,7 +123,7 @@ namespace EldenEncouragement
             var proc = Process.GetProcessesByName(name).FirstOrDefault();
             if (proc == null)
                 throw new InvalidOperationException("Elden Ring is not running. Launch it in OFFLINE mode (no EAC).");
-            Console.WriteLine($"Found Elden Ring (PID: {proc.Id})");
+            //Console.WriteLine($"Found Elden Ring (PID: {proc.Id})");
             return proc;
         }
     }
@@ -102,29 +161,193 @@ namespace EldenEncouragement
             if (_handle == IntPtr.Zero)
                 throw new InvalidOperationException("Failed to open process. Are you running as admin?");
 
-            Console.WriteLine($"Module base: 0x{ModuleBase.ToString("X")} (Handle: {_handle})");
+            //Console.WriteLine($"Module base: 0x{ModuleBase.ToString("X")} (Handle: {_handle})");
         }
 
-        public async Task<string> PrintPlayerStats(Addresses.AddressesSet addrs, Dictionary<int, string> idToName)
+        public Task<string> PrintPlayerStats(Addresses.AddressesSet addrs, Dictionary<int, string> idToName)
         {
-            int w1 = (int)ReadChain(addrs.Weapon1Offsets);
-            int w2 = (int)ReadChain(addrs.Weapon2Offsets);
-            int w3 = (int)ReadChain(addrs.Weapon3Offsets);
+            return Task.Run(() =>
+            {
+                int w1 = (int)ReadChain(addrs.Weapon1Offsets);
+                int w2 = (int)ReadChain(addrs.Weapon2Offsets);
+                int w3 = (int)ReadChain(addrs.Weapon3Offsets);
 
-            return ($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}\nMax HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}" +
-                $"\nGreat Rune Active?: {ReadChain(addrs.GROffsets) & 0x00000000000FFFF}" +
-                $"\nDeath Count: {ReadChain(addrs.DeathOffsets) & 0x00000000FFFFFFFF}" +
-                $"\nPlayer Name: {ReadString(addrs.NameOffset, 64)}" +
-                $"\nPlayer level: {ReadChain(addrs.LevelOffsets) & 0x00000000FFFFFFFF}" +
-                $"\nRunes: {ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF}" +
-                $"\nClass: {ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames)}" +
-                $"\nGender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}" +
-                $"\nLocation: {ResolveLocation(addrs.LocationOffsets)}" +
-                $"\nPrimary Weapon: {idToName.GetValueOrDefault(w1, "Unknown Weapon")}"
-                + $" | Secondary: {idToName.GetValueOrDefault(w2, "Unknown")}"
-                + $" | Tertiary: {idToName.GetValueOrDefault(w3, "Unknown")}"
-            );
+                return
+                    $"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Great Rune Active?: {ReadChain(addrs.GROffsets) & 0x00000000000FFFF}\n" +
+                    $"Death Count: {ReadChain(addrs.DeathOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Player Name: {ReadString(addrs.NameOffset, 64)}\n" +
+                    $"Player level: {ReadChain(addrs.LevelOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Runes: {ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Class: {ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames)}\n" +
+                    $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
+                    $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
+                    $"Primary Weapon: {idToName.GetValueOrDefault(w1, "Unknown Weapon")}" +
+                    $" | Secondary: {idToName.GetValueOrDefault(w2, "Unknown")}" +
+                    $" | Tertiary: {idToName.GetValueOrDefault(w3, "Unknown")}";
+            });
         }
+
+        public static void SaveChanges(Changes changes, string path = "saved_stats.json")
+        {
+            Console.WriteLine($"Saving changes to {path}...");
+            var json = System.Text.Json.JsonSerializer.Serialize(changes, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json);
+        }
+
+        public static Changes LoadChanges(string path = "saved_stats.json")
+        {
+            if (File.Exists(path))
+            {
+                Console.WriteLine($"Loading changes from {path}...");
+                var json = File.ReadAllText(path);
+                return System.Text.Json.JsonSerializer.Deserialize<Changes>(json);
+            }
+            else
+            {
+                Console.WriteLine($"File {path} not found. Creating a new one with default values...");
+                var newChanges = new Changes();
+                SaveChanges(newChanges, path); // Create the file with defaults
+                return newChanges;
+            }
+        }
+
+
+        public Task<string[]> GetChangedStats(Addresses.AddressesSet addrs, Dictionary<int, string> idToName)
+        {
+            return Task.Run(() =>
+            {
+                // Load previous save
+                var changes = LoadChanges();
+
+                // Sentiment for voice line
+                string sentiment = "general";
+
+                // Read current values
+                int w1 = (int)ReadChain(addrs.Weapon1Offsets);
+                int w2 = (int)ReadChain(addrs.Weapon2Offsets);
+                int w3 = (int)ReadChain(addrs.Weapon3Offsets);
+
+                double currentHP = ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF;
+                double currentMaxHP = ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF;
+                double currentGR = ReadChain(addrs.GROffsets) & 0x00000000000FFFF;
+                double currentDeath = ReadChain(addrs.DeathOffsets) & 0x00000000FFFFFFFF;
+                double currentLevel = ReadChain(addrs.LevelOffsets) & 0x00000000FFFFFFFF;
+                double currentRunes = ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF;
+
+                string currentLocation = ResolveLocation(addrs.LocationOffsets);
+                string currentWeapon = idToName.GetValueOrDefault(w1, "Unknown Weapon");
+                string currentWeapon2 = idToName.GetValueOrDefault(w2, "Unknown");
+                string currentWeapon3 = idToName.GetValueOrDefault(w3, "Unknown");
+
+                var changesList = new List<string>();
+                // If this is the first time, assign the values to the previous stats
+                if (changes.prevStats == null)
+                {
+                    changes.prevStats = new double[] { currentHP, currentMaxHP, currentGR, currentDeath, currentLevel, currentRunes };
+                    changes.prevLocation = currentLocation;
+                    changes.prevWeapon = currentWeapon;
+                    changes.prevWeapon2 = currentWeapon2;
+                    changes.prevWeapon3 = currentWeapon3;
+                    changes.visitedLocations = new HashSet<string>();
+                    changes.visitedLocations.Add(currentLocation);
+                    changes.prevWeapons = new HashSet<string>();
+                    changes.prevWeapons.Add(currentWeapon);
+                    changes.prevWeapons.Add(currentWeapon2);
+                    changes.prevWeapons.Add(currentWeapon3);
+                    SaveChanges(changes);
+                    return new string[] { "Initial stats assigned." };
+                }
+                else
+                {
+                    // Compare current stats with previous stats
+
+                    if (changes.prevStats[0] != currentHP && (changes.prevStats[0] - currentHP) / currentMaxHP >= .25) 
+                    {
+                        changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
+                        sentiment = "worried";
+                    }
+                    if (currentHP / currentMaxHP <= .25)
+                    {
+                        changesList.Add($"HP is low: {currentHP} of {currentMaxHP} HP");
+                        sentiment = "worried";
+                    }
+                    if (changes.prevStats[2] != currentGR && currentGR == 1)
+                    {
+                        changesList.Add($"Great Rune Activated!");
+                        if (sentiment != "worried") sentiment = "impressed";
+                    }
+                    if (changes.prevStats[3] != currentDeath)
+                    {
+                        changesList.Add($"Death count changed from {changes.prevStats[3]} to {currentDeath}");
+                        sentiment = "death";
+                    }
+                    if (changes.prevStats[4] != currentLevel)
+                    {
+                        changesList.Add($"Level changed from {changes.prevStats[4]} to {currentLevel}");
+                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                    }
+                    var runeMultiplier = Math.Max(0, ((currentLevel + 81) - 92) * .02);
+                    var runeCost = (runeMultiplier + .1) * (Math.Pow(currentLevel + 81, 2) + 1);
+                    if (currentRunes >= runeCost && changes.prevStats[5] != currentRunes)
+                    {
+                        changesList.Add($"Enough runes to level up! Runes changed from {changes.prevStats[5]} to {currentRunes}");
+                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                    }
+                    if (!changes.visitedLocations.Contains(currentLocation))
+                    {
+                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                        changesList.Add($"New location visited: {currentLocation}");
+                        changes.visitedLocations.Add(currentLocation);
+                        changes.prevLocation = currentLocation;
+                    }
+
+                    //if (changes.prevWeapon != currentWeapon) changesList.Add($"Primary changed from {changes.prevWeapon} to {currentWeapon}");
+                    //if (changes.prevWeapon2 != currentWeapon2) changesList.Add($"Secondary changed from {changes.prevWeapon2} to {currentWeapon2}");
+                    //if (changes.prevWeapon3 != currentWeapon3) changesList.Add($"Tertiary changed from {changes.prevWeapon3} to {currentWeapon3}");
+
+                    if (!changes.prevWeapons.Contains(currentWeapon))
+                    {
+                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                        changesList.Add($"New primary weapon equipped: {currentWeapon}");
+                        changes.prevWeapons.Add(currentWeapon);
+                        changes.prevWeapon = currentWeapon;
+                    }
+
+                    if (!changes.prevWeapons.Contains(currentWeapon2))
+                    {
+                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                        changesList.Add($"New secondary weapon equipped: {currentWeapon2}");
+                        changes.prevWeapons.Add(currentWeapon2);
+                        changes.prevWeapon3 = currentWeapon2;
+                    }
+
+                    if (!changes.prevWeapons.Contains(currentWeapon3))
+                    {
+                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                        changesList.Add($"New tertiary weapon equipped: {currentWeapon3}");
+                        changes.prevWeapons.Add(currentWeapon3);
+                        changes.prevWeapon3 = currentWeapon3;
+                    }
+
+                    changes.prevLocation = currentLocation;
+                    changes.prevWeapon = currentWeapon;
+                    changes.prevWeapon2 = currentWeapon2;
+                    changes.prevWeapon3 = currentWeapon3;
+                    changes.prevStats = new double[] { currentHP, currentMaxHP, currentGR, currentDeath, currentLevel, currentRunes };
+
+                    // Save changes to file
+                    SaveChanges(changes);
+
+                    // If there are any changes, log them
+                    return changesList.Count > 0
+                    ? new string[2] { $"Event detected: {string.Join(", ", changesList)}",sentiment }
+                    : new string[1] {"No changes detected."};
+                }
+            });
+        }
+
 
         public ulong ReadChain(int[] offsets)
         {
