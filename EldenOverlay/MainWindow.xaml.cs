@@ -59,8 +59,8 @@ namespace EldenRingOverlay
             Focusable = false;
         }
 
-            // PInvoke declarations
-            [DllImport("user32.dll")]
+        // PInvoke declarations
+        [DllImport("user32.dll")]
         static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
         [DllImport("user32.dll")]
@@ -81,7 +81,7 @@ namespace EldenRingOverlay
         public MainWindow()
         {
             EnsureAdministrator();
-            AllocConsole(); // Shows console window
+            //AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
             GetScreenSize();
@@ -172,7 +172,7 @@ namespace EldenRingOverlay
                     await Task.Delay(10000); // Increased delay for safety
                     if (IsEldenRingRunning()) return;
                 }
-                
+
                 if (File.Exists(exeFile))
                 {
                     //hasLaunchFiles++;
@@ -181,7 +181,7 @@ namespace EldenRingOverlay
                     await Task.Delay(10000); // Increased delay for safety
                     if (IsEldenRingRunning()) return;
                 }
-                
+
                 tryAndRun++;
             }
 
@@ -278,7 +278,7 @@ namespace EldenRingOverlay
                             lastEventTime = DateTime.Now;
                         }
                     }
-                    else if(isFullscreen)
+                    else if (isFullscreen)
                     {
                         await reader.UpdateEvent();
                     }
@@ -367,7 +367,7 @@ namespace EldenRingOverlay
                     }
 
                     // Force overlay to remain topmost
-                    
+
                     //this.Topmost = true;
 
                     return true;
@@ -389,7 +389,7 @@ namespace EldenRingOverlay
 
             }
         }
-        
+
         private async Task GetEncouragement()
         {
             string text = await reader.GetEncouragement();
@@ -408,6 +408,21 @@ namespace EldenRingOverlay
             {
                 this.Topmost = false;
                 this.Topmost = true;
+
+                // Read voice from settings.ini
+                int voice = 1; // default
+                var iniLines = File.ReadAllLines("settings.ini");
+                foreach (var line in iniLines)
+                {
+                    if (line.Trim().StartsWith("Voice="))
+                    {
+                        var value = line.Split('=')[1].Trim();
+                        if (int.TryParse(value, out int result))
+                            voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                        break;
+                    }
+                }
+
                 bool playSpecial = true;
                 foreach (var raw in sentences)
                 {
@@ -431,14 +446,14 @@ namespace EldenRingOverlay
                         wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
                     }
 
-                    if (File.Exists(wavFilePath))
+                    if (File.Exists(wavFilePath) && voice == 1)
                     {
                         var player = new SoundPlayer(wavFilePath);
                         player.Play();
                     }
 
                     await FadeTextBlock(AIEncouragement, fadeIn: true);
-                    await Task.Delay(5000);      
+                    await Task.Delay(5000);
                     await FadeTextBlock(AIEncouragement, fadeIn: false);
                 }
                 speaking = false;
@@ -469,6 +484,21 @@ namespace EldenRingOverlay
             {
                 this.Topmost = false;
                 this.Topmost = true;
+
+                // Read voice from settings.ini
+                int voice = 1; // default
+                var iniLines = File.ReadAllLines("settings.ini");
+                foreach (var line in iniLines)
+                {
+                    if (line.Trim().StartsWith("Voice="))
+                    {
+                        var value = line.Split('=')[1].Trim();
+                        if (int.TryParse(value, out int result))
+                            voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                        break;
+                    }
+                }
+
                 var playSpecial = true;
                 foreach (var raw in sentences)
                 {
@@ -492,10 +522,10 @@ namespace EldenRingOverlay
                         wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
                     }
 
-                    if (File.Exists(wavFilePath))
+                    if (File.Exists(wavFilePath) && voice == 1)
                     {
                         var player = new SoundPlayer(wavFilePath);
-                        player.Play(); 
+                        player.Play();
                     }
 
                     await FadeTextBlock(AIEncouragement, fadeIn: true);
@@ -513,8 +543,23 @@ namespace EldenRingOverlay
 
             Dispatcher.Invoke(() => AIEncouragement.Text = text);
 
-            if (File.Exists(@"Audio\melina_general_1.wav"))
+            // Read voice from settings.ini
+            int voice = 1; // default
+            var iniLines = File.ReadAllLines("settings.ini");
+            foreach (var line in iniLines)
             {
+                if (line.Trim().StartsWith("Voice="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (int.TryParse(value, out int result))
+                        voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                    break;
+                }
+            }
+
+            if (File.Exists(@"Audio\melina_general_1.wav") && voice == 1)
+            {
+                Task.Delay(2000).Wait();
                 var player = new SoundPlayer(@"Audio\melina_general_1.wav");
                 player.Play();
             }
@@ -577,7 +622,7 @@ namespace EldenRingOverlay
             Canvas.SetLeft(AIEncouragement, centerX);
             Canvas.SetTop(AIEncouragement, bottomY);
 
-           await Welcome();
+            await Welcome();
 
         }
     }

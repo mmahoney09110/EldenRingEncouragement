@@ -21,6 +21,7 @@ namespace EldenEncouragement
         public string prevWeapon3 { get; set; } = "";
         public HashSet<string> visitedLocations { get; set; } = new();
         public HashSet<string> prevWeapons { get; set; } = new();
+        public bool runes { get; set; } = false;
 
     }
 
@@ -213,7 +214,7 @@ namespace EldenEncouragement
             }
         }
 
-
+        
         public Task<string[]> GetChangedStats(Addresses.AddressesSet addrs, Dictionary<int, string> idToName)
         {
             return Task.Run(() =>
@@ -256,6 +257,7 @@ namespace EldenEncouragement
                     changes.prevWeapons.Add(currentWeapon);
                     changes.prevWeapons.Add(currentWeapon2);
                     changes.prevWeapons.Add(currentWeapon3);
+                    changes.runes = false;
                     SaveChanges(changes);
                     return new string[] { "Initial stats assigned." };
                 }
@@ -263,15 +265,22 @@ namespace EldenEncouragement
                 {
                     // Compare current stats with previous stats
 
-                    if (changes.prevStats[0] != currentHP && (changes.prevStats[0] - currentHP) / currentMaxHP >= .25) 
+                    if (changes.prevStats[0] != currentHP && (changes.prevStats[0] - currentHP) / currentMaxHP >= .25)
                     {
                         changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
                         sentiment = "worried";
                     }
                     if (currentHP / currentMaxHP <= .25)
                     {
-                        changesList.Add($"HP is low: {currentHP} of {currentMaxHP} HP");
-                        sentiment = "worried";
+                        if (currentHP == 0)
+                        {
+                            changesList.Add($"You died! Current HP: {currentHP} of {currentMaxHP} HP");
+                            sentiment = "death";
+                        }
+                        else { 
+                            changesList.Add($"HP is low: {currentHP} of {currentMaxHP} HP");
+                            sentiment = "worried";
+                        }
                     }
                     if (changes.prevStats[2] != currentGR && currentGR == 1)
                     {
@@ -290,10 +299,15 @@ namespace EldenEncouragement
                     }
                     var runeMultiplier = Math.Max(0, ((currentLevel + 81) - 92) * .02);
                     var runeCost = (runeMultiplier + .1) * (Math.Pow(currentLevel + 81, 2) + 1);
-                    if (currentRunes >= runeCost && changes.prevStats[5] != currentRunes)
+                    if (currentRunes >= runeCost && changes.runes==false)
                     {
-                        changesList.Add($"Enough runes to level up! Runes changed from {changes.prevStats[5]} to {currentRunes}");
+                        changes.runes = true;
+                        changesList.Add($"Enough runes to level up! Current Runes = {currentRunes}");
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                    }
+                    else if (currentRunes < runeCost)
+                    {
+                        changes.runes = false;
                     }
                     if (!changes.visitedLocations.Contains(currentLocation))
                     {
