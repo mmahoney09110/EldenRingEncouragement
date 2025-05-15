@@ -1,14 +1,12 @@
-﻿using System.Data.Common;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using LocationDict;
-using static System.Net.Mime.MediaTypeNames;
+using WeaponDict;
+
 
 namespace EldenEncouragement
 {
@@ -37,10 +35,9 @@ namespace EldenEncouragement
             {
                 var process = FindProcess("eldenring");
                 using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
-                var idToName = WeaponLoader.LoadIds("Weapon_IDs.csv");
                 var addresses = Addresses.GetAddresses();
 
-                string stats = await reader.PrintPlayerStats(addresses, idToName);
+                string stats = await reader.PrintPlayerStats(addresses);
                 var body = (prevStats + "\n" + "Current stats:\n" + stats);
                 prevStats = "Last sent stats:\n" + stats;
 
@@ -60,9 +57,8 @@ namespace EldenEncouragement
             {
                 var process = FindProcess("eldenring");
                 using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
-                var idToName = WeaponLoader.LoadIds("Weapon_IDs.csv");
                 var addresses = Addresses.GetAddresses();
-                await reader.GetChangedStats(addresses, idToName);
+                await reader.GetChangedStats(addresses);
             }
             catch (Exception ex)
             {
@@ -77,10 +73,8 @@ namespace EldenEncouragement
             {
                 var process = FindProcess("eldenring");
                 using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
-                var idToName = WeaponLoader.LoadIds("Weapon_IDs.csv");
                 var addresses = Addresses.GetAddresses();
-
-                string[] changed = await reader.GetChangedStats(addresses, idToName);
+                string[] changed = await reader.GetChangedStats(addresses);
 
                 if (changed.Length < 2 || changed[0] == "No changes detected." || changed[0] == "Initial stats assigned.")
                 {
@@ -165,13 +159,10 @@ namespace EldenEncouragement
             //Console.WriteLine($"Module base: 0x{ModuleBase.ToString("X")} (Handle: {_handle})");
         }
 
-        public Task<string> PrintPlayerStats(Addresses.AddressesSet addrs, Dictionary<int, string> idToName)
+        public Task<string> PrintPlayerStats(Addresses.AddressesSet addrs)
         {
             return Task.Run(() =>
             {
-                int w1 = (int)ReadChain(addrs.Weapon1Offsets);
-                int w2 = (int)ReadChain(addrs.Weapon2Offsets);
-                int w3 = (int)ReadChain(addrs.Weapon3Offsets);
 
                 return
                     $"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}\n" +
@@ -184,9 +175,9 @@ namespace EldenEncouragement
                     $"Class: {ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames)}\n" +
                     $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
                     $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
-                    $"Primary Weapon: {idToName.GetValueOrDefault(w1, "Unknown Weapon")}" +
-                    $" | Secondary: {idToName.GetValueOrDefault(w2, "Unknown")}" +
-                    $" | Tertiary: {idToName.GetValueOrDefault(w3, "Unknown")}";
+                    $"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
+                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
+                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}";
             });
         }
 
@@ -215,7 +206,7 @@ namespace EldenEncouragement
         }
 
         
-        public Task<string[]> GetChangedStats(Addresses.AddressesSet addrs, Dictionary<int, string> idToName)
+        public Task<string[]> GetChangedStats(Addresses.AddressesSet addrs)
         {
             return Task.Run(() =>
             {
@@ -226,10 +217,6 @@ namespace EldenEncouragement
                 string sentiment = "general";
 
                 // Read current values
-                int w1 = (int)ReadChain(addrs.Weapon1Offsets);
-                int w2 = (int)ReadChain(addrs.Weapon2Offsets);
-                int w3 = (int)ReadChain(addrs.Weapon3Offsets);
-
                 double currentHP = ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF;
                 double currentMaxHP = ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF;
                 double currentGR = ReadChain(addrs.GROffsets) & 0x00000000000FFFF;
@@ -238,9 +225,9 @@ namespace EldenEncouragement
                 double currentRunes = ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF;
 
                 string currentLocation = ResolveLocation(addrs.LocationOffsets);
-                string currentWeapon = idToName.GetValueOrDefault(w1, "Unknown Weapon");
-                string currentWeapon2 = idToName.GetValueOrDefault(w2, "Unknown");
-                string currentWeapon3 = idToName.GetValueOrDefault(w3, "Unknown");
+                string currentWeapon = ResolveWeapon(addrs.Weapon1Offsets);
+                string currentWeapon2 = ResolveWeapon(addrs.Weapon2Offsets);
+                string currentWeapon3 = ResolveWeapon(addrs.Weapon3Offsets);
 
                 var changesList = new List<string>();
                 // If this is the first time, assign the values to the previous stats
@@ -443,23 +430,20 @@ namespace EldenEncouragement
             }
         }
 
-        public void Dispose() => NativeMethods.CloseHandle(_handle);
-    }
-
-    internal static class WeaponLoader
-    {
-        public static Dictionary<int, string> LoadIds(string csvPath)
+        private string ResolveWeapon(int[] offsets)
         {
-            var map = new Dictionary<int, string>();
-            foreach (var line in File.ReadLines(csvPath))
+            long wepVal = (int)ReadChain(offsets);
+            if (WeaponData.WeaponMap.TryGetValue((long)wepVal, out var weaponName))
             {
-                if (line.StartsWith("ID")) continue;
-                var parts = line.Split(',');
-                if (int.TryParse(parts[0], out var id) && !string.IsNullOrWhiteSpace(parts[1]))
-                    map[id] = parts[1].Trim();
+                return ($"{weaponName}");
             }
-            return map;
+            else
+            {
+                return ("Unknown");
+            }
         }
+
+        public void Dispose() => NativeMethods.CloseHandle(_handle);
     }
 
     internal static class Addresses

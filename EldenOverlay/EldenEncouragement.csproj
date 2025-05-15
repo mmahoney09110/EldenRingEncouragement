@@ -17,12 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Weapon_IDs.csv">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
   <None Include="Audio\**\*.*">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
   </None>

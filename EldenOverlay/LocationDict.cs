@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LocationDict
+﻿namespace LocationDict
 {
     public static class LocationData
     {
@@ -325,6 +319,65 @@ namespace LocationDict
         { 10002952, "Castleward Tunnel" },
         { 10002951, "Margit, the Fell Omen" },
         { 10002950, "Godrick the Grafted" },
-    };
+        { 2045412950, "[Realm of Shadow] Cliffroad Terminus" },
+        { 2045422950, "[Realm of Shadow] Main Gate Cross" },
+        { 2046402950, "[Realm of Shadow] Gravesite Plain" },
+        { 2046422950, "[Realm of Shadow] Three-Path Cross" },
+        { 2046442950, "[Realm of Shadow] Greatbridge" },
+        { 2047412950, "[Realm of Shadow] Scorched Ruins" },
+        { 2047432950, "[Realm of Shadow] Ellac River Cave" },
+        { 2047442950, "[Realm of Shadow] Castle Front" },
+        { 2047442951, "[Realm of Shadow] Castle Ensis Checkpoint" },
+        { 2048422950, "[Realm of Shadow] Pillar Path Waypoint" },
+        { 2048432950, "[Realm of Shadow] Pillar Path Cross" },
+        { 2048442950, "[Realm of Shadow] Ensis Moongazing Grounds" },
+        { 2048442951, "[Realm of Shadow] Castle-Lord's Chamber" },
+        { 2046392950, "[Realm of Shadow] Cerulean Coast West" },
+        { 2047352950, "[Realm of Shadow] The Fissure" },
+        { 2047412951, "[Realm of Shadow] Ellac River Downstream" },
+        { 2048372950, "[Realm of Shadow] Cerulean Coast Cross" },
+        { 2048392950, "[Realm of Shadow] Cerulean Coast" },
+        { 2048392951, "[Realm of Shadow] Charo's Hidden Grave" },
+        { 2048432951, "[Realm of Shadow] Divided Falls" },
+        { 2049392950, "[Realm of Shadow] Grand Altar of Dragon Communion" },
+        { 2050382950, "[Realm of Shadow] Finger Ruins of Rhia" },
+        { 2050422950, "[Realm of Shadow] Abyssal Woods" },
+        { 2051422950, "[Realm of Shadow] Woodland Trail" },
+        { 2052402950, "[Realm of Shadow] Foot of the Jagged Peak" },
+        { 2052432950, "[Realm of Shadow] Forsaken Graveyard" },
+        { 2053392950, "[Realm of Shadow] Jagged Peak Mountainside" },
+        { 2053412950, "[Realm of Shadow] Church Ruins" },
+        { 2054392950, "[Realm of Shadow] Jagged Peak Summit" },
+        { 2055392950, "[Realm of Shadow] Rest of the Dread Dragon" },
+        { 2044452950, "[Realm of Shadow] Ancient Ruins" },
+        { 2044452951, "[Realm of Shadow] Church of the Bud" },
+        { 2044462950, "[Realm of Shadow] Church of the Bud" },
+        { 2045452951, "[Realm of Shadow] Rauh Ancient Ruins" },
+        { 2045462950, "[Realm of Shadow] Temple Town Ruins" },
+        { 2045472950, "[Realm of Shadow] Ravine North" },
+        { 2046472950, "[Realm of Shadow] Rauh Ancient Ruins" },
+        { 2047452950, "[Realm of Shadow] Scadu Altus" },
+        { 2047472950, "[Realm of Shadow] Viaduct Minor Tower" },
+        { 2048452950, "[Realm of Shadow] Highroad Cross" },
+        { 2048472950, "[Realm of Shadow] Ancient Ruins Base" },
+        { 2049432950, "[Realm of Shadow] Moorth Highway" },
+        { 2049432951, "[Realm of Shadow] Fort of Reprimand" },
+        { 2049432952, "[Realm of Shadow] Behind the Fort of Reprimand" },
+        { 2049442950, "[Realm of Shadow] Moorth Ruins" },
+        { 2049442951, "[Realm of Shadow] Bonny Village" },
+        { 2049472950, "[Realm of Shadow] Castle Watering Hole" },
+        { 2049482950, "[Realm of Shadow] Scaduview" },
+        { 2049482951, "[Realm of Shadow] Shadow Keep" },
+        { 2050432950, "[Realm of Shadow] Scaduview Cross" },
+        { 2050442950, "[Realm of Shadow] Recluses' River Downstream" },
+        { 2050452950, "[Realm of Shadow] Recluses' River Upstream" },
+        { 2050482950, "[Realm of Shadow] Hinterland" },
+        { 2050482951, "[Realm of Shadow] Scadutree Base" },
+        { 2051442950, "[Realm of Shadow] Bridge Leading to the Village" },
+        { 2051452950, "[Realm of Shadow] Cathedral of Manus Metyr" },
+        { 2051472950, "[Realm of Shadow] Church District Highroad" },
+        { 2051482950, "[Realm of Shadow] Fingerstone Hill" },
+        { 2051482951, "[Realm of Shadow] Hinterland Bridge" },
+        };
     }
 }
