@@ -11,6 +11,8 @@ A C# project that reads in-game values like HP from Elden Ring's memory and plan
   
 - Integration with an LLM (OpenAI API) to impersonate an in-game maiden, commenting and encouraging the player.
 
+- Response time ~ 9 seconds.
+
 - Dynamic API calls on ingame events.
   
 - WPF overlay displaying messages in real-time over Elden Ring.
