@@ -56,6 +56,9 @@ This project is for educational and non-commercial use. Do **NOT** use it online
 
 This project is licensed under the [MIT License](./LICENSE). You are free to use, modify, and distribute this code, as long as the original license is included in your distribution.
 
+## Demo
+Published demo can be found here: [Nexus](https://www.nexusmods.com/eldenring/mods/7999)
+
 ---
 
 > *"Arise now, Ye Tarnished... and bring your HP bar with you."*
