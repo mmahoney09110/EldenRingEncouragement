@@ -269,33 +269,47 @@ namespace EldenEncouragement
                     if (changes.prevStats[0] != currentHP && (changes.prevStats[0] - currentHP) / currentMaxHP >= .25)
                     {
                         changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
+                        changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
+                        changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
                         sentiment = "worried";
                     }
                     if (currentHP / currentMaxHP <= .25)
                     {
                         if (currentHP == 0)
                         {
-                            changesList.Add($"You died! Current HP: {currentHP} of {currentMaxHP} HP");
+                            changesList.Add($"{currentName} died! Current HP: {currentHP} of {currentMaxHP} HP");
+                            changesList.Add($"Death Count: {currentDeath}");
+                            changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
+                            changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
                             sentiment = "death";
                         }
                         else { 
                             changesList.Add($"HP is low: {currentHP} of {currentMaxHP} HP");
+                            changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
+                            changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
                             sentiment = "worried";
                         }
                     }
                     if (changes.prevStats[2] != currentGR && currentGR == 1)
                     {
                         changesList.Add($"Great Rune Activated!");
+                        changesList.Add($"Great Rune Active?: {ReadChain(addrs.GROffsets) & 0x00000000000FFFF}");
+                        changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
+                        changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
                         if (sentiment != "worried") sentiment = "impressed";
                     }
                     if (changes.prevStats[3] != currentDeath)
                     {
                         changesList.Add($"Death count changed from {changes.prevStats[3]} to {currentDeath}");
+                        changesList.Add($"Death Count: {currentDeath}");
                         sentiment = "death";
                     }
                     if (changes.prevStats[4] != currentLevel)
                     {
                         changesList.Add($"Level changed from {changes.prevStats[4]} to {currentLevel}");
+                        changesList.Add($"Player level: {currentLevel}");
+                        changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
+                        changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                     }
                     var runeMultiplier = Math.Max(0, ((currentLevel + 81) - 92) * .02);
@@ -304,6 +318,7 @@ namespace EldenEncouragement
                     {
                         changes.runes = true;
                         changesList.Add($"Enough runes to level up! Current Runes = {currentRunes}");
+                        changesList.Add($"Runes: {ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF}");
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                     }
                     else if (currentRunes < runeCost)
@@ -314,6 +329,7 @@ namespace EldenEncouragement
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                         changesList.Add($"New location visited: {currentLocation}");
+                        changesList.Add($"Location: {currentLocation}");
                         changes.visitedLocations.Add(currentLocation);
                         changes.prevLocation = currentLocation;
                     }
@@ -326,6 +342,9 @@ namespace EldenEncouragement
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                         changesList.Add($"New primary weapon equipped: {currentWeapon}");
+                        changesList.Add($"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
+                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
+                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}");
                         changes.prevWeapons.Add(currentWeapon);
                         changes.prevWeapon = currentWeapon;
                     }
@@ -334,6 +353,9 @@ namespace EldenEncouragement
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                         changesList.Add($"New secondary weapon equipped: {currentWeapon2}");
+                        changesList.Add($"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
+                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
+                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}");
                         changes.prevWeapons.Add(currentWeapon2);
                         changes.prevWeapon3 = currentWeapon2;
                     }
@@ -342,6 +364,9 @@ namespace EldenEncouragement
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                         changesList.Add($"New tertiary weapon equipped: {currentWeapon3}");
+                        changesList.Add($"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
+                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
+                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}");
                         changes.prevWeapons.Add(currentWeapon3);
                         changes.prevWeapon3 = currentWeapon3;
                     }
@@ -357,7 +382,7 @@ namespace EldenEncouragement
 
                     // If there are any changes, log them
                     return changesList.Count > 0
-                    ? new string[2] { $"Player Name: {currentName}\nEvent detected: {string.Join(", ", changesList)}",sentiment }
+                    ? new string[2] { $"Player Name: {currentName}\nEvent detected: {string.Join("\n", changesList)}",sentiment }
                     : new string[1] {"No changes detected."};
                 }
             });
