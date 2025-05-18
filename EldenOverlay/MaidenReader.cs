@@ -247,7 +247,7 @@ namespace EldenEncouragement
                     changes.runes = false;
                     SaveChanges(changes);
                     sentiment = "general";
-                    return new string[] { "Event detected: First time talking to you!\n+" +
+                    return new string[] { "Event detected: First time talking to you!\n" +
                     $"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}\n" +
                     $"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}\n" +
                     $"Great Rune Active?: {ReadChain(addrs.GROffsets) & 0x00000000000FFFF}\n" +
