@@ -20,7 +20,6 @@ namespace EldenEncouragement
         public HashSet<string> visitedLocations { get; set; } = new();
         public HashSet<string> prevWeapons { get; set; } = new();
         public bool runes { get; set; } = false;
-
     }
 
     internal class MaidenReader
@@ -224,6 +223,7 @@ namespace EldenEncouragement
                 double currentLevel = ReadChain(addrs.LevelOffsets) & 0x00000000FFFFFFFF;
                 double currentRunes = ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF;
 
+                string currentName = ReadString(addrs.NameOffset, 64);
                 string currentLocation = ResolveLocation(addrs.LocationOffsets);
                 string currentWeapon = ResolveWeapon(addrs.Weapon1Offsets);
                 string currentWeapon2 = ResolveWeapon(addrs.Weapon2Offsets);
@@ -246,7 +246,21 @@ namespace EldenEncouragement
                     changes.prevWeapons.Add(currentWeapon3);
                     changes.runes = false;
                     SaveChanges(changes);
-                    return new string[] { "Initial stats assigned." };
+                    sentiment = "general";
+                    return new string[] { "Event detected: First time talking to you!\n+" +
+                    $"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Great Rune Active?: {ReadChain(addrs.GROffsets) & 0x00000000000FFFF}\n" +
+                    $"Death Count: {ReadChain(addrs.DeathOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Player Name: {ReadString(addrs.NameOffset, 64)}\n" +
+                    $"Player level: {ReadChain(addrs.LevelOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Runes: {ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF}\n" +
+                    $"Class: {ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames)}\n" +
+                    $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
+                    $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
+                    $"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
+                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
+                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}", sentiment};
                 }
                 else
                 {
@@ -343,7 +357,7 @@ namespace EldenEncouragement
 
                     // If there are any changes, log them
                     return changesList.Count > 0
-                    ? new string[2] { $"Event detected: {string.Join(", ", changesList)}",sentiment }
+                    ? new string[2] { $"Player Name: {currentName}\nEvent detected: {string.Join(", ", changesList)}",sentiment }
                     : new string[1] {"No changes detected."};
                 }
             });
@@ -413,7 +427,7 @@ namespace EldenEncouragement
 
         private string ResolveFromTable(int[] offsets, string[] table)
         {
-            int idx = (int)ReadChain(offsets) & 0xFFFF;
+            int idx = (int)ReadChain(offsets) & 0xFF;
             return idx >= 0 && idx < table.Length ? table[idx] : "Unknown";
         }
 
