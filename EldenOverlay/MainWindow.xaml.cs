@@ -238,6 +238,9 @@ namespace EldenRingOverlay
             DateTime lastEventTime = DateTime.MinValue;
             bool isFullscreen = false;
 
+            // Set the font size
+            setFont();
+
             // Read interval from settings.ini
             int intervalESeconds = 300; // default
             var iniLines = File.ReadAllLines("settings.ini");
@@ -390,7 +393,25 @@ namespace EldenRingOverlay
             }
         }
 
-        private async Task GetEncouragement()
+        private void setFont()
+        {
+            // Set font size
+            string[] iniLines = File.ReadAllLines("settings.ini");
+            foreach (var line in iniLines)
+            {
+                if (line.Trim().StartsWith("FontSize="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (int.TryParse(value, out int result))
+                        AIEncouragement.FontSize = Math.Max(1, result); // Clamp 1
+                    break;
+                }
+            }            
+        }
+        // Read voice from settings.ini
+        
+
+private async Task GetEncouragement()
         {
             string text = await reader.GetEncouragement();
 
@@ -622,7 +643,10 @@ namespace EldenRingOverlay
             Canvas.SetLeft(AIEncouragement, centerX);
             Canvas.SetTop(AIEncouragement, bottomY);
 
+            if (!speaking) 
+            { 
             await Welcome();
+            }
 
         }
     }
