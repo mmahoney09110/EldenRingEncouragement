@@ -28,12 +28,6 @@
   </None>
 </ItemGroup>
 
-<ItemGroup>
-  <None Include="saved_stats.json">
-    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-  </None>
-</ItemGroup>
-
   <ItemGroup>
     <Resource Include="Fonts\IMFellEnglish.ttf">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>

@@ -28,7 +28,7 @@ namespace EldenEncouragement
         private const int PROCESS_QUERY_INFORMATION = 0x0400;
         string prevStats = "";
 
-        public async Task<string> GetEncouragement()
+        public async Task<string> GetEncouragement(int character)
         {
             try
             {
@@ -40,7 +40,7 @@ namespace EldenEncouragement
                 var body = (prevStats + "\n" + "Current stats:\n" + stats);
                 prevStats = "Last sent stats:\n" + stats;
 
-                return await SendBodyAsync(body);
+                return await SendBodyAsync(body, character);
 
             }
             catch (Exception ex)
@@ -66,7 +66,7 @@ namespace EldenEncouragement
 
         }
 
-        public async Task<string[]> GetEvent()
+        public async Task<string[]> GetEvent(int character)
         {
             try
             {
@@ -81,7 +81,7 @@ namespace EldenEncouragement
                 }
                 else
                 { 
-                    return new string[] { await SendBodyAsync(changed[0]), changed[1] };
+                    return new string[] { await SendBodyAsync(changed[0],character), changed[1] };
                 }
             }
             catch (Exception ex)
@@ -92,11 +92,12 @@ namespace EldenEncouragement
 
         }
 
-        public static async Task<string> SendBodyAsync(string bodyValue)
+        public static async Task<string> SendBodyAsync(string bodyValue, int characterValue)
         {
             var content = new FormUrlEncodedContent(new[]
             {
-                new KeyValuePair<string, string>("Body", bodyValue)
+                new KeyValuePair<string, string>("Body", bodyValue),
+                new KeyValuePair<string, string>("Character", characterValue.ToString())
             });
 
             using var HttpClient = new HttpClient();

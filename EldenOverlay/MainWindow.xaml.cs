@@ -81,7 +81,7 @@ namespace EldenRingOverlay
         public MainWindow()
         {
             EnsureAdministrator();
-            //AllocConsole(); // Shows console window
+            AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
             GetScreenSize();
@@ -254,6 +254,20 @@ namespace EldenRingOverlay
                     break;
                 }
             }
+
+            // Read character from settings.ini
+            int character = 0; // default
+            var Lines = File.ReadAllLines("settings.ini");
+            foreach (var line in Lines)
+            {
+                if (line.Trim().StartsWith("Character="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (int.TryParse(value, out int result))
+                        character = Math.Max(0, Math.Min(result,1)); // Ensure 0 or 1
+                    break;
+                }
+            }
             // Fullscreen check every second
             var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             fsTimer.Tick += async (s, e) =>
@@ -264,18 +278,18 @@ namespace EldenRingOverlay
                     if (isFullscreen && !positioned)
                     {
                         Console.WriteLine("Elden Ring is in fullscreen mode. Positioning overlay.");
-                        PositionOverlayRelativeToGameWindow(new RECT());
+                        PositionOverlayRelativeToGameWindow(new RECT(),character);
                         positioned = true;
                     }
                     else if (!isFullscreen)
                     {
-                        Console.WriteLine("Elden Ring is not in fullscreen mode. Hiding overlay.");
+                        //Console.WriteLine("Elden Ring is not in fullscreen mode. Hiding overlay.");
                         positioned = false;
                     }
                     if (isFullscreen && (DateTime.Now - lastEventTime).TotalSeconds >= intervalESeconds && speaking == false)
                     {
                         speaking = true;
-                        bool spoke = await GetEvent();
+                        bool spoke = await GetEvent(character);
                         if (spoke)
                         {
                             lastEventTime = DateTime.Now;
@@ -319,7 +333,7 @@ namespace EldenRingOverlay
                     if (!speaking)
                     {
                         speaking = true;
-                        await GetEncouragement();
+                        await GetEncouragement(character);
                         return;
                     }
                 }
@@ -355,8 +369,8 @@ namespace EldenRingOverlay
                 double physicalScreenWidth = SystemParameters.PrimaryScreenWidth * dpiFactorX;
                 double physicalScreenHeight = SystemParameters.PrimaryScreenHeight * dpiFactorY;
 
-                Console.WriteLine($"Checking fullscreen: Window size: {windowWidth} x {windowHeight}");
-                Console.WriteLine($"Physical screen size: {physicalScreenWidth} x {physicalScreenHeight}");
+                //Console.WriteLine($"Checking fullscreen: Window size: {windowWidth} x {windowHeight}");
+                //Console.WriteLine($"Physical screen size: {physicalScreenWidth} x {physicalScreenHeight}");
 
                 // Check if the game is in fullscreen mode
                 if (windowWidth == physicalScreenWidth && windowHeight == physicalScreenHeight)
@@ -377,7 +391,7 @@ namespace EldenRingOverlay
                 }
                 else
                 {
-                    Console.WriteLine("Elden Ring is not in fullscreen mode. Hiding overlay.");
+                    //Console.WriteLine("Elden Ring is not in fullscreen mode. Hiding overlay.");
                     //this.Hide();
                     return false;
 
@@ -411,9 +425,9 @@ namespace EldenRingOverlay
         // Read voice from settings.ini
         
 
-private async Task GetEncouragement()
+private async Task GetEncouragement(int c)
         {
-            string text = await reader.GetEncouragement();
+            string text = await reader.GetEncouragement(c);
 
             // Split on punctuation + *any* whitespace (including newline)
             var sentences = Regex.Split(text, @"(?<=[\.!\?])\s+");
@@ -454,17 +468,17 @@ private async Task GetEncouragement()
                     Dispatcher.Invoke(() => AIEncouragement.Text = sentence);
 
                     Random r = new Random();
-                    int fileNumber = r.Next(2, 6);
-                    string wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
+                    int fileNumber = r.Next(1, 6);
+                    string wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
                     // play random of 5 files when speaking
                     if (playSpecial)
                     {
                         playSpecial = false;
-                        wavFilePath = $@"Audio\melina_general_{fileNumber}.wav";
+                        wavFilePath = $@"Audio\{c}_general_{fileNumber}.wav";
                     }
                     else
                     {
-                        wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
+                        wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
                     }
 
                     if (File.Exists(wavFilePath) && voice == 1)
@@ -481,9 +495,9 @@ private async Task GetEncouragement()
             }
         }
 
-        private async Task<bool> GetEvent()
+        private async Task<bool> GetEvent(int c)
         {
-            string[] text = await reader.GetEvent();
+            string[] text = await reader.GetEvent(c);
 
             // If we only got one element back, there was no "real" event
             if (text.Length < 2 || text[0] == "No changes detected.")
@@ -531,16 +545,16 @@ private async Task GetEncouragement()
 
                     Random r = new Random();
                     int fileNumber = r.Next(1, 6);
-                    string wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
+                    string wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
                     // play random of 5 files when speaking
                     if (playSpecial)
                     {
                         playSpecial = false;
-                        wavFilePath = $@"Audio\melina_{sentiment}_{fileNumber}.wav";
+                        wavFilePath = $@"Audio\{c}_{sentiment}_{fileNumber}.wav";
                     }
                     else
                     {
-                        wavFilePath = $@"Audio\melina_omp_{fileNumber}.wav";
+                        wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
                     }
 
                     if (File.Exists(wavFilePath) && voice == 1)
@@ -558,7 +572,7 @@ private async Task GetEncouragement()
             return true;
         }
 
-        private async Task Welcome()
+        private async Task Welcome(int c)
         {
             string text = "Welcome back, tarnished";
 
@@ -578,11 +592,15 @@ private async Task GetEncouragement()
                 }
             }
 
-            if (File.Exists(@"Audio\melina_general_1.wav") && voice == 1)
+            if (File.Exists($@"Audio\{c}_welcome.wav") && voice == 1)
             {
                 Task.Delay(2000).Wait();
-                var player = new SoundPlayer(@"Audio\melina_general_1.wav");
+                var player = new SoundPlayer($@"Audio\{c}_welcome.wav");
                 player.Play();
+            }
+            else
+            {
+                Console.WriteLine($@"Audio\{c}_welcome.mp3 not found.");
             }
 
             await FadeTextBlock(AIEncouragement, fadeIn: true);
@@ -622,7 +640,7 @@ private async Task GetEncouragement()
             screenHeight = SystemParameters.PrimaryScreenHeight * dpiFactorY;
 
         }
-        private async void PositionOverlayRelativeToGameWindow(RECT rect)
+        private async void PositionOverlayRelativeToGameWindow(RECT rect,int c)
         {
             this.Topmost = false;
             this.Topmost = true;
@@ -645,7 +663,7 @@ private async Task GetEncouragement()
 
             if (!speaking) 
             { 
-            await Welcome();
+            await Welcome(c);
             }
 
         }
