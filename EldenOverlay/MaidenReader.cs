@@ -101,7 +101,6 @@ namespace EldenEncouragement
             });
 
             using var HttpClient = new HttpClient();
-
             var response = await HttpClient.PostAsync("https://openai-proxy-server-vo9f.onrender.com/api/response", content);
 
             if (response.IsSuccessStatusCode)

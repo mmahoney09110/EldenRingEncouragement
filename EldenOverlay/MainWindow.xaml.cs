@@ -23,6 +23,7 @@ namespace EldenRingOverlay
         private const int MissingThreshold = 35;
         private double screenWidth;
         private double screenHeight;
+        private int duration = 5;
 
         // Win32 constants
         private const int GWL_EXSTYLE = -20;
@@ -81,7 +82,7 @@ namespace EldenRingOverlay
         public MainWindow()
         {
             EnsureAdministrator();
-            AllocConsole(); // Shows console window
+            //AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
             GetScreenSize();
@@ -238,7 +239,7 @@ namespace EldenRingOverlay
             DateTime lastEventTime = DateTime.MinValue;
             bool isFullscreen = false;
 
-            // Set the font size
+            // Set the font size and duration from settings.ini
             setFont();
 
             // Read interval from settings.ini
@@ -420,7 +421,17 @@ namespace EldenRingOverlay
                         AIEncouragement.FontSize = Math.Max(1, result); // Clamp 1
                     break;
                 }
-            }            
+            }
+            foreach (var line in iniLines)
+            {
+                if (line.Trim().StartsWith("Duration="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (int.TryParse(value, out int result))
+                        duration = Math.Max(0, result); // Clamp 0
+                    break;
+                }
+            }
         }
         // Read voice from settings.ini
         
@@ -488,7 +499,7 @@ private async Task GetEncouragement(int c)
                     }
 
                     await FadeTextBlock(AIEncouragement, fadeIn: true);
-                    await Task.Delay(5000);
+                    await Task.Delay(duration*1000);
                     await FadeTextBlock(AIEncouragement, fadeIn: false);
                 }
                 speaking = false;
@@ -564,7 +575,7 @@ private async Task GetEncouragement(int c)
                     }
 
                     await FadeTextBlock(AIEncouragement, fadeIn: true);
-                    await Task.Delay(5000);
+                    await Task.Delay(duration * 1000);
                     await FadeTextBlock(AIEncouragement, fadeIn: false);
                 }
                 speaking = false;
@@ -604,7 +615,7 @@ private async Task GetEncouragement(int c)
             }
 
             await FadeTextBlock(AIEncouragement, fadeIn: true);
-            await Task.Delay(3000);
+            await Task.Delay(duration * 1000);
             await FadeTextBlock(AIEncouragement, fadeIn: false);
 
         }
