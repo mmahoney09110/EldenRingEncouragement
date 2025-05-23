@@ -266,7 +266,7 @@ namespace EldenRingOverlay
                 {
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
-                        character = Math.Max(0, Math.Min(result,1)); // Ensure 0 or 1
+                        character = Math.Max(0, Math.Min(result,2)); // Ensure 0 - 2
                     break;
                 }
             }
