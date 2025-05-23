@@ -94,9 +94,20 @@ namespace EldenEncouragement
 
         public static async Task<string> SendBodyAsync(string bodyValue, int characterValue)
         {
+            // Read language from settings.ini
+            string language = "English"; // default
+            var iniLines = File.ReadAllLines("settings.ini");
+            foreach (var line in iniLines)
+            {
+                if (line.Trim().StartsWith("Language="))
+                {
+                    language = line.Split('=')[1].Trim();
+                    break;
+                }
+            }
             var content = new FormUrlEncodedContent(new[]
             {
-                new KeyValuePair<string, string>("Body", bodyValue),
+                new KeyValuePair<string, string>("Body", "Translate your response into: " + language + "\n" + bodyValue),
                 new KeyValuePair<string, string>("Character", characterValue.ToString())
             });
 

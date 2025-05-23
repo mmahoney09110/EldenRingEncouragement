@@ -3,6 +3,7 @@ using System.IO;
 using System.Media;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -433,15 +434,41 @@ namespace EldenRingOverlay
                 }
             }
         }
-        // Read voice from settings.ini
-        
 
-private async Task GetEncouragement(int c)
+        static string[] SplitIntoSentences(string text)
+        {
+            // define every character you want to treat as “end of sentence”:
+            var terminators = new HashSet<char> { '.', '!', '?', '\u3002'};
+
+            var list = new List<string>();
+            var sb = new StringBuilder();
+
+            foreach (var c in text)
+            {
+                sb.Append(c);
+                if (terminators.Contains(c))
+                {
+                    var s = sb.ToString().Trim();
+                    if (s.Length > 0)
+                        list.Add(s);
+                    sb.Clear();
+                }
+            }
+
+            // catch any trailing text without a final terminator
+            var tail = sb.ToString().Trim();
+            if (tail.Length > 0)
+                list.Add(tail);
+
+            return list.ToArray();
+        }
+
+        private async Task GetEncouragement(int c)
         {
             string text = await reader.GetEncouragement(c);
 
             // Split on punctuation + *any* whitespace (including newline)
-            var sentences = Regex.Split(text, @"(?<=[\.!\?])\s+");
+            var sentences = SplitIntoSentences(text);
 
             //this.Topmost = false;
             //this.Topmost = true;
@@ -474,7 +501,6 @@ private async Task GetEncouragement(int c)
                 {
                     var sentence = raw.Trim();
                     if (sentence == "") continue;
-                    if (!".!?".Contains(sentence[^1])) sentence += ".";
 
                     Dispatcher.Invoke(() => AIEncouragement.Text = sentence);
 
@@ -518,7 +544,7 @@ private async Task GetEncouragement(int c)
             }
 
             // Split on punctuation + *any* whitespace (including newline)
-            var sentences = Regex.Split(text[0], @"(?<=[\.!\?])\s+");
+            var sentences = SplitIntoSentences(text[0]);
             var sentiment = text[1];
 
             if (string.IsNullOrWhiteSpace(text[0]))
@@ -550,7 +576,6 @@ private async Task GetEncouragement(int c)
                 {
                     var sentence = raw.Trim();
                     if (sentence == "") continue;
-                    if (!".!?".Contains(sentence[^1])) sentence += ".";
 
                     Dispatcher.Invoke(() => AIEncouragement.Text = sentence);
 
