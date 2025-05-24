@@ -252,7 +252,7 @@ namespace EldenRingOverlay
                 {
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
-                        intervalESeconds = Math.Max(60, result); // Ensure 60 second or more
+                        intervalESeconds = Math.Max(0, result); // Ensure 0 second or more
                     break;
                 }
             }
@@ -297,7 +297,7 @@ namespace EldenRingOverlay
                             lastEventTime = DateTime.Now;
                         }
                     }
-                    else if (isFullscreen)
+                    else if (isFullscreen && intervalESeconds>0)
                     {
                         await reader.UpdateEvent();
                     }
@@ -496,6 +496,7 @@ namespace EldenRingOverlay
                     }
                 }
 
+                int temp = -1;
                 bool playSpecial = true;
                 foreach (var raw in sentences)
                 {
@@ -515,7 +516,12 @@ namespace EldenRingOverlay
                     }
                     else
                     {
+                        while (temp == fileNumber)
+                        {
+                            fileNumber = r.Next(1, 6);
+                        }
                         wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
+                        temp = fileNumber;  
                     }
 
                     if (File.Exists(wavFilePath) && voice == 1)
@@ -571,6 +577,7 @@ namespace EldenRingOverlay
                     }
                 }
 
+                int temp = -1;
                 var playSpecial = true;
                 foreach (var raw in sentences)
                 {
@@ -590,7 +597,12 @@ namespace EldenRingOverlay
                     }
                     else
                     {
+                        while (temp == fileNumber)
+                        {
+                            fileNumber = r.Next(1, 6);
+                        }
                         wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
+                        temp = fileNumber;
                     }
 
                     if (File.Exists(wavFilePath) && voice == 1)
