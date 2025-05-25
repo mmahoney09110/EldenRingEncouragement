@@ -4,13 +4,11 @@ using System.Media;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media; // Needed for Matrix
 using System.Windows.Media.Animation;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 using EldenEncouragement;
 
@@ -32,6 +30,13 @@ namespace EldenRingOverlay
         private const int WS_EX_NOACTIVATE = 0x08000000;
         private const int WS_EX_LAYERED = 0x00080000;
         private const int WS_EX_TOPMOST = 0x00000008;
+
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        // ShowWindow flags
+        const int SW_HIDE = 0;
+        const int SW_SHOWNA = 8;  // Show window, do not activate
 
         [DllImport("user32.dll")]
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -83,6 +88,11 @@ namespace EldenRingOverlay
         public MainWindow()
         {
             EnsureAdministrator();
+            //Cap all WPF animations (and render passes) to 15 FPS
+            Timeline.DesiredFrameRateProperty.OverrideMetadata(
+                typeof(Timeline),
+                new FrameworkPropertyMetadata { DefaultValue = 15 }
+            );
             //AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
@@ -503,7 +513,11 @@ namespace EldenRingOverlay
                     var sentence = raw.Trim();
                     if (sentence == "") continue;
 
-                    Dispatcher.Invoke(() => AIEncouragement.Text = sentence);
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdateSubtitle(sentence);
+                    }));
+
 
                     Random r = new Random();
                     int fileNumber = r.Next(1, 6);
@@ -584,7 +598,11 @@ namespace EldenRingOverlay
                     var sentence = raw.Trim();
                     if (sentence == "") continue;
 
-                    Dispatcher.Invoke(() => AIEncouragement.Text = sentence);
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdateSubtitle(sentence);
+                    }));
+
 
                     Random r = new Random();
                     int fileNumber = r.Next(1, 6);
@@ -624,7 +642,11 @@ namespace EldenRingOverlay
         {
             string text = "Welcome back, tarnished";
 
-            Dispatcher.Invoke(() => AIEncouragement.Text = text);
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                UpdateSubtitle(text);
+            }));
+
 
             // Read voice from settings.ini
             int voice = 1; // default
@@ -659,6 +681,14 @@ namespace EldenRingOverlay
 
         async Task FadeTextBlock(TextBlock tb, bool fadeIn, double duration = 500)
         {
+            var hwnd = new WindowInteropHelper(this).Handle;
+
+            // If fading in, show via Win32 (no activation)
+            if (fadeIn)
+            {
+                ShowWindow(hwnd, SW_SHOWNA);
+            }
+
             var animation = new DoubleAnimation
             {
                 From = fadeIn ? 0 : 1,
@@ -670,7 +700,28 @@ namespace EldenRingOverlay
             var tcs = new TaskCompletionSource<bool>();
             animation.Completed += (s, e) => tcs.SetResult(true);
             tb.BeginAnimation(UIElement.OpacityProperty, animation);
+
             await tcs.Task;
+
+            // If fading out, hide via Win32
+            if (!fadeIn)
+            {
+                ShowWindow(hwnd, SW_HIDE);
+            }
+        }
+
+
+        /// <summary>
+        /// Sets the subtitle text _and_ invalidates the layout only if it’s different.
+        /// </summary>
+        private void UpdateSubtitle(string newText)
+        {
+            // avoid redundant visual invalidation
+            if (AIEncouragement.Text == newText)
+                return;
+
+            AIEncouragement.Text = newText;
+            AIEncouragement.InvalidateVisual();
         }
 
         private void GetScreenSize()

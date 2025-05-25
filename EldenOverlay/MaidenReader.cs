@@ -17,6 +17,7 @@ namespace EldenEncouragement
         public string prevWeapon { get; set; } = "";
         public string prevWeapon2 { get; set; } = "";
         public string prevWeapon3 { get; set; } = "";
+        public string prevleftHand1 { get; set; } = "";
         public HashSet<string> visitedLocations { get; set; } = new();
         public HashSet<string> prevWeapons { get; set; } = new();
         public bool runes { get; set; } = false;
@@ -185,9 +186,8 @@ namespace EldenEncouragement
                     $"Class: {ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames)}\n" +
                     $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
                     $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
-                    $"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
-                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
-                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}";
+                    $"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
+                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}";
             });
         }
 
@@ -239,6 +239,7 @@ namespace EldenEncouragement
                 string currentWeapon = ResolveWeapon(addrs.Weapon1Offsets);
                 string currentWeapon2 = ResolveWeapon(addrs.Weapon2Offsets);
                 string currentWeapon3 = ResolveWeapon(addrs.Weapon3Offsets);
+                string currentleftHand1 = ResolveWeapon(addrs.leftHand1Offset);
 
                 var changesList = new List<string>();
                 // If this is the first time, assign the values to the previous stats
@@ -249,12 +250,14 @@ namespace EldenEncouragement
                     changes.prevWeapon = currentWeapon;
                     changes.prevWeapon2 = currentWeapon2;
                     changes.prevWeapon3 = currentWeapon3;
+                    changes.prevleftHand1 = currentleftHand1;
                     changes.visitedLocations = new HashSet<string>();
                     changes.visitedLocations.Add(currentLocation);
                     changes.prevWeapons = new HashSet<string>();
                     changes.prevWeapons.Add(currentWeapon);
                     changes.prevWeapons.Add(currentWeapon2);
                     changes.prevWeapons.Add(currentWeapon3);
+                    changes.prevWeapons.Add(currentleftHand1);
                     changes.runes = false;
                     SaveChanges(changes);
                     sentiment = "general";
@@ -269,9 +272,8 @@ namespace EldenEncouragement
                     $"Class: {ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames)}\n" +
                     $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
                     $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
-                    $"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
-                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
-                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}", sentiment};
+                    $"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
+                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}", sentiment};
                 }
                 else
                 {
@@ -284,7 +286,7 @@ namespace EldenEncouragement
                         changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
                         sentiment = "worried";
                     }
-                    if (currentHP / currentMaxHP <= .25)
+                    if (changes.prevStats[0] != currentHP && currentHP / currentMaxHP <= .25)
                     {
                         if (currentHP == 0)
                         {
@@ -345,47 +347,31 @@ namespace EldenEncouragement
                         changes.prevLocation = currentLocation;
                     }
 
-                    //if (changes.prevWeapon != currentWeapon) changesList.Add($"Primary changed from {changes.prevWeapon} to {currentWeapon}");
-                    //if (changes.prevWeapon2 != currentWeapon2) changesList.Add($"Secondary changed from {changes.prevWeapon2} to {currentWeapon2}");
-                    //if (changes.prevWeapon3 != currentWeapon3) changesList.Add($"Tertiary changed from {changes.prevWeapon3} to {currentWeapon3}");
-
                     if (!changes.prevWeapons.Contains(currentWeapon))
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
-                        changesList.Add($"New primary weapon equipped: {currentWeapon}");
-                        changesList.Add($"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
-                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
-                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}");
+                        changesList.Add($"New right hand weapon equipped: {currentWeapon}");
+                        changesList.Add($"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
+                        $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}");
                         changes.prevWeapons.Add(currentWeapon);
                         changes.prevWeapon = currentWeapon;
                     }
 
-                    if (!changes.prevWeapons.Contains(currentWeapon2))
+                    if (!changes.prevWeapons.Contains(currentleftHand1))
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
-                        changesList.Add($"New secondary weapon equipped: {currentWeapon2}");
-                        changesList.Add($"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
-                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
-                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}");
-                        changes.prevWeapons.Add(currentWeapon2);
-                        changes.prevWeapon3 = currentWeapon2;
-                    }
-
-                    if (!changes.prevWeapons.Contains(currentWeapon3))
-                    {
-                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
-                        changesList.Add($"New tertiary weapon equipped: {currentWeapon3}");
-                        changesList.Add($"Primary Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}" +
-                    $" | Secondary: {ResolveWeapon(addrs.Weapon2Offsets)}" +
-                    $" | Tertiary: {ResolveWeapon(addrs.Weapon3Offsets)}");
-                        changes.prevWeapons.Add(currentWeapon3);
-                        changes.prevWeapon3 = currentWeapon3;
+                        changesList.Add($"New left hand weapon equipped: {currentleftHand1}");
+                        changesList.Add($"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
+                        $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}");
+                        changes.prevWeapons.Add(currentleftHand1);
+                        changes.prevleftHand1 = currentleftHand1;
                     }
 
                     changes.prevLocation = currentLocation;
                     changes.prevWeapon = currentWeapon;
                     changes.prevWeapon2 = currentWeapon2;
                     changes.prevWeapon3 = currentWeapon3;
+                    changes.prevleftHand1 = currentleftHand1;
                     changes.prevStats = new double[] { currentHP, currentMaxHP, currentGR, currentDeath, currentLevel, currentRunes };
 
                     // Save changes to file
@@ -483,15 +469,19 @@ namespace EldenEncouragement
         private string ResolveWeapon(int[] offsets)
         {
             long wepVal = (int)ReadChain(offsets);
-            if (WeaponData.WeaponMap.TryGetValue((long)wepVal, out var weaponName))
+            long baseId = wepVal - (wepVal % 100); // Removes upgrade level
+
+            if (WeaponData.WeaponMap.TryGetValue(baseId, out var weaponName))
             {
-                return ($"{weaponName}");
+                int upgradeLevel = (int)(wepVal % 100);
+                return $"{weaponName} +{upgradeLevel}";
             }
             else
             {
-                return ("Unknown");
+                return "Unknown";
             }
         }
+
 
         public void Dispose() => NativeMethods.CloseHandle(_handle);
     }
@@ -516,10 +506,13 @@ namespace EldenEncouragement
             public int[] Weapon1Offsets;
             public int[] Weapon2Offsets;
             public int[] Weapon3Offsets;
+            public int[] leftHand1Offset;
         }
 
         public static AddressesSet GetAddresses()
         {
+            //GameDataMan  = 0x3D5DF38
+            //WorldChrMan = 0x3D65F88
             return new AddressesSet
             {
                 HPOffsets = new[] { 0x3D65F88, 0x10EF8, 0x0, 0x190, 0x0, 0x138 },
@@ -534,7 +527,8 @@ namespace EldenEncouragement
                 LocationOffsets = new[] { 0x3D69918, 0xB60 },
                 Weapon1Offsets = new[] { 0x3D5DF38, 0x08, 0x39C },
                 Weapon2Offsets = new[] { 0x3D5DF38, 0x08, 0x3A4 },
-                Weapon3Offsets = new[] { 0x3D5DF38, 0x08, 0x3AC }
+                Weapon3Offsets = new[] { 0x3D5DF38, 0x08, 0x3AC },
+                leftHand1Offset = new[] { 0x3D5DF38, 0x08, 0x398 },
             };
         }
     }
