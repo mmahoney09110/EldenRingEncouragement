@@ -350,9 +350,9 @@ namespace EldenEncouragement
                     if (!changes.prevWeapons.Contains(currentWeapon))
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
-                        changesList.Add($"New right hand weapon equipped: {currentWeapon}");
-                        changesList.Add($"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
-                        $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}");
+                        changesList.Add($"New right hand weapon equipped from {changes.prevWeapon} to {currentWeapon}");
+                        changesList.Add($"Right Weapon: {currentWeapon}\n" +
+                        $"Left Weapon: {currentleftHand1}");
                         changes.prevWeapons.Add(currentWeapon);
                         changes.prevWeapon = currentWeapon;
                     }
@@ -360,9 +360,9 @@ namespace EldenEncouragement
                     if (!changes.prevWeapons.Contains(currentleftHand1))
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
-                        changesList.Add($"New left hand weapon equipped: {currentleftHand1}");
-                        changesList.Add($"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
-                        $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}");
+                        changesList.Add($"New left hand weapon equipped from {changes.prevleftHand1} {currentleftHand1}");
+                        changesList.Add($"Right Weapon: {currentWeapon}\n" +
+                        $"Left Weapon: {currentleftHand1}");
                         changes.prevWeapons.Add(currentleftHand1);
                         changes.prevleftHand1 = currentleftHand1;
                     }
