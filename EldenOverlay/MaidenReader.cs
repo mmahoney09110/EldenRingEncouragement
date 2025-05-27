@@ -189,8 +189,7 @@ namespace EldenEncouragement
                     $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
                     $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
                     $"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
-                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}\n" +
-                    $"Current Enemy: {ResolveEnemy()}\n";
+                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}\n";
             });
         }
 
@@ -353,6 +352,7 @@ namespace EldenEncouragement
                         changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
                         changesList.Add($"HP: {currentHP}");
                         changesList.Add($"Max HP: {currentMaxHP}");
+                        changesList.Add($"Current Enemy: {currentEnemy}");
                         sentiment = "worried";
                     }
 
@@ -360,6 +360,7 @@ namespace EldenEncouragement
                     {
                         if (currentHP == 0)
                         {
+                            changesList.Add($"Current Enemy: {currentEnemy}");
                             changesList.Add($"{currentName} died! Current HP: {currentHP} of {currentMaxHP} HP");
                             changesList.Add($"Death Count: {currentDeath}");
                             changesList.Add($"HP: {currentHP}");
@@ -368,6 +369,7 @@ namespace EldenEncouragement
                         }
                         else { 
                             changesList.Add($"HP is low: {currentHP} of {currentMaxHP} HP");
+                            changesList.Add($"Current Enemy: {currentEnemy}");
                             changesList.Add($"HP: {currentHP}");
                             changesList.Add($"Max HP: {currentMaxHP}");
                             sentiment = "worried";
