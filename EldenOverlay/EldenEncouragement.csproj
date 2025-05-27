@@ -28,6 +28,12 @@
   </None>
 </ItemGroup>
 
+<ItemGroup>
+  <None Include="EldenHelper.exe">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
+
   <ItemGroup>
     <Resource Include="Fonts\IMFellEnglish.ttf">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>

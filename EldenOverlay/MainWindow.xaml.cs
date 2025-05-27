@@ -99,6 +99,10 @@ namespace EldenRingOverlay
             GetScreenSize();
             StartEldenRingLauncher();
             StartMonitoringEldenRing();
+            // Start the helper process to read data from Elden Ring
+            CheatEngineHelper helper = new CheatEngineHelper();
+            helper.RunHelperAndReadData(); // Start the helper process to read Elden Ring data
+            Task.Delay(15000).Wait(); // Wait for the helper to initialize
         }
 
         [DllImport("libc")]
@@ -210,6 +214,7 @@ namespace EldenRingOverlay
 
         private void StartMonitoringEldenRing()
         {
+            var helper = new CheatEngineHelper();
             checkEldenRingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             checkEldenRingTimer.Tick += async (s, e) =>
             {
@@ -222,6 +227,7 @@ namespace EldenRingOverlay
                     missingCounter++;
                     if (missingCounter >= MissingThreshold)
                     {
+                        helper.StopHelper(); // Stop the helper process if Elden Ring is not running
                         Application.Current.Shutdown();
                     }
                 }

@@ -21,6 +21,8 @@ namespace EldenEncouragement
         public HashSet<string> visitedLocations { get; set; } = new();
         public HashSet<string> prevWeapons { get; set; } = new();
         public bool runes { get; set; } = false;
+        public string currentEnemy { get; set; } = "";
+        public HashSet<string> pastEnemies { get; set; } = new();
     }
 
     internal class MaidenReader
@@ -187,10 +189,65 @@ namespace EldenEncouragement
                     $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
                     $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
                     $"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
-                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}";
+                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}" +
+                    $"Current Enemy: {ResolveEnemy()}\n";
             });
         }
 
+        public string ResolveEnemy()
+        {
+            ulong ptr = 0;
+           
+            string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+            string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
+            // Read the output file created by Lua
+            string outputFile = Path.Combine(outputDir, "lockon_addr.txt");
+            if (!File.Exists(outputFile))
+            {
+                Console.WriteLine("No output file found at: " + outputFile);
+                return "Ignore, enemy could not be determined.";
+            }
+            var addr = File.ReadAllLines(outputFile);
+            if (addr.Length == 0 || string.IsNullOrWhiteSpace(addr[0]))
+            {
+                Console.WriteLine("Output file is empty or invalid.");
+                return "Ignore, enemy could not be determined.";
+            }
+            Console.WriteLine("The address is: " + addr[0]);
+            // Parse the hex string into a long
+            if (ulong.TryParse(addr[0].Replace("0x", ""), System.Globalization.NumberStyles.HexNumber, null, out ulong address))
+            {
+                // Use as needed
+
+                Console.WriteLine($"Parsed Address: 0x{address:X}");
+            }
+            else
+            {
+                Console.WriteLine("Failed to parse address.");
+                return "Ignore, enemy could not be determined.";
+            }
+            try
+            {
+                ptr = ReadPointer(address + (uint)0x60);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to read pointer: " + ex.Message);
+                return "Ignore, enemy could not be determined.";
+            }
+            
+            var locVal = ptr & 0xFFFFFFFF; // Mask to 32 bits, as the enemy location is stored in a 32-bit pointer
+            // Read the enemy name from the pointer
+            if (NpcDict.NpcMap.TryGetValue((long)locVal, out var enemyName))
+            {
+                return ($"{enemyName}");
+            }
+            else
+            {
+                return ("Ignore, enemy could not be determined");
+            }
+
+        }
         public static void SaveChanges(Changes changes, string path = "saved_stats.json")
         {
             Console.WriteLine($"Saving changes to {path}...");
@@ -240,6 +297,7 @@ namespace EldenEncouragement
                 string currentWeapon2 = ResolveWeapon(addrs.Weapon2Offsets);
                 string currentWeapon3 = ResolveWeapon(addrs.Weapon3Offsets);
                 string currentleftHand1 = ResolveWeapon(addrs.leftHand1Offset);
+                string currentEnemy = ResolveEnemy();
 
                 var changesList = new List<string>();
                 // If this is the first time, assign the values to the previous stats
@@ -259,6 +317,9 @@ namespace EldenEncouragement
                     changes.prevWeapons.Add(currentWeapon3);
                     changes.prevWeapons.Add(currentleftHand1);
                     changes.runes = false;
+                    changes.currentEnemy = currentEnemy;
+                    changes.pastEnemies = new HashSet<string>();
+                    changes.pastEnemies.Add(currentEnemy);
                     SaveChanges(changes);
                     sentiment = "general";
                     return new string[] { "Event detected: First time talking to you!\n" +
@@ -273,42 +334,50 @@ namespace EldenEncouragement
                     $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
                     $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
                     $"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
-                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}", sentiment};
+                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}\n"+
+                    $"Current Enemy: {ResolveEnemy()}\n", sentiment};
                 }
                 else
                 {
                     // Compare current stats with previous stats
+                    if (!changes.pastEnemies.Contains(currentEnemy) && changes.currentEnemy!= "Ignore, enemy could not be determined")
+                    {
+                        changesList.Add($"New enemy detected: {currentEnemy}");
+                        changes.pastEnemies.Add(currentEnemy);
+                        sentiment = "general";
+                    }
 
                     if (changes.prevStats[0] != currentHP && (changes.prevStats[0] - currentHP) / currentMaxHP >= .25)
                     {
                         changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
-                        changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
-                        changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
+                        changesList.Add($"HP: {currentHP}");
+                        changesList.Add($"Max HP: {currentMaxHP}");
                         sentiment = "worried";
                     }
+
                     if (changes.prevStats[0] != currentHP && currentHP / currentMaxHP <= .25)
                     {
                         if (currentHP == 0)
                         {
                             changesList.Add($"{currentName} died! Current HP: {currentHP} of {currentMaxHP} HP");
                             changesList.Add($"Death Count: {currentDeath}");
-                            changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
-                            changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
+                            changesList.Add($"HP: {currentHP}");
+                            changesList.Add($"Max HP: {currentMaxHP}");
                             sentiment = "death";
                         }
                         else { 
                             changesList.Add($"HP is low: {currentHP} of {currentMaxHP} HP");
-                            changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
-                            changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
+                            changesList.Add($"HP: {currentHP}");
+                            changesList.Add($"Max HP: {currentMaxHP}");
                             sentiment = "worried";
                         }
                     }
                     if (changes.prevStats[2] != currentGR && currentGR == 1)
                     {
                         changesList.Add($"Great Rune Activated!");
-                        changesList.Add($"Great Rune Active?: {ReadChain(addrs.GROffsets) & 0x00000000000FFFF}");
-                        changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
-                        changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
+                        changesList.Add($"Great Rune Active?: {currentGR}");
+                        changesList.Add($"HP: {currentHP}");
+                        changesList.Add($"Max HP: {currentMaxHP}");
                         if (sentiment != "worried") sentiment = "impressed";
                     }
                     if (changes.prevStats[3] != currentDeath)
@@ -321,8 +390,8 @@ namespace EldenEncouragement
                     {
                         changesList.Add($"Level changed from {changes.prevStats[4]} to {currentLevel}");
                         changesList.Add($"Player level: {currentLevel}");
-                        changesList.Add($"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}");
-                        changesList.Add($"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}");
+                        changesList.Add($"HP: {currentHP}");
+                        changesList.Add($"Max HP: {currentMaxHP}");
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                     }
                     var runeMultiplier = Math.Max(0, ((currentLevel + 81) - 92) * .02);
@@ -331,7 +400,7 @@ namespace EldenEncouragement
                     {
                         changes.runes = true;
                         changesList.Add($"Enough runes to level up! Current Runes = {currentRunes}");
-                        changesList.Add($"Runes: {ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF}");
+                        changesList.Add($"Runes: {currentRunes}");
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                     }
                     else if (currentRunes < runeCost)
@@ -360,13 +429,14 @@ namespace EldenEncouragement
                     if (!changes.prevWeapons.Contains(currentleftHand1))
                     {
                         if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
-                        changesList.Add($"New left hand weapon equipped from {changes.prevleftHand1} {currentleftHand1}");
+                        changesList.Add($"New left hand weapon equipped from {changes.prevleftHand1} to {currentleftHand1}");
                         changesList.Add($"Right Weapon: {currentWeapon}\n" +
                         $"Left Weapon: {currentleftHand1}");
                         changes.prevWeapons.Add(currentleftHand1);
                         changes.prevleftHand1 = currentleftHand1;
                     }
 
+                    changes.currentEnemy = currentEnemy;
                     changes.prevLocation = currentLocation;
                     changes.prevWeapon = currentWeapon;
                     changes.prevWeapon2 = currentWeapon2;

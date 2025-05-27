@@ -10,7 +10,7 @@ namespace EldenEncouragement
     {
         public static readonly Dictionary<long, string> NpcMap = new Dictionary<long, string>
         {
-            { 0, "" },
+            { 0, "Ignore, enemy could not be determined" },
             { 1, "Human" },
     { 100, "" },
     { 540, "" },
