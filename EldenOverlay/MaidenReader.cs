@@ -189,7 +189,7 @@ namespace EldenEncouragement
                     $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
                     $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
                     $"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
-                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}" +
+                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}\n" +
                     $"Current Enemy: {ResolveEnemy()}\n";
             });
         }
