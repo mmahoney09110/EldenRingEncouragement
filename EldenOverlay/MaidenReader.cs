@@ -205,13 +205,13 @@ namespace EldenEncouragement
             if (!File.Exists(outputFile))
             {
                 Console.WriteLine("No output file found at: " + outputFile);
-                return "Ignore, enemy could not be determined.";
+                return "None";
             }
             var addr = File.ReadAllLines(outputFile);
             if (addr.Length == 0 || string.IsNullOrWhiteSpace(addr[0]))
             {
                 Console.WriteLine("Output file is empty or invalid.");
-                return "Ignore, enemy could not be determined.";
+                return "None";
             }
             Console.WriteLine("The address is: " + addr[0]);
             // Parse the hex string into a long
@@ -224,7 +224,7 @@ namespace EldenEncouragement
             else
             {
                 Console.WriteLine("Failed to parse address.");
-                return "Ignore, enemy could not be determined.";
+                return "None";
             }
             try
             {
@@ -233,7 +233,7 @@ namespace EldenEncouragement
             catch (Exception ex)
             {
                 Console.WriteLine("Failed to read pointer: " + ex.Message);
-                return "Ignore, enemy could not be determined.";
+                return "None";
             }
             
             var locVal = ptr & 0xFFFFFFFF; // Mask to 32 bits, as the enemy location is stored in a 32-bit pointer
@@ -244,7 +244,7 @@ namespace EldenEncouragement
             }
             else
             {
-                return ("Ignore, enemy could not be determined");
+                return ("None");
             }
 
         }
@@ -339,8 +339,8 @@ namespace EldenEncouragement
                 }
                 else
                 {
-                    // Compare current stats with previous stats
-                    if (!changes.pastEnemies.Contains(currentEnemy) && changes.currentEnemy!= "Ignore, enemy could not be determined")
+                    // Compare current stats with previous stats 
+                    if (!changes.pastEnemies.Contains(currentEnemy) && changes.currentEnemy!= "None")
                     {
                         changesList.Add($"New enemy detected: {currentEnemy}");
                         changesList.Add($"Current Enemy: {currentEnemy}");
