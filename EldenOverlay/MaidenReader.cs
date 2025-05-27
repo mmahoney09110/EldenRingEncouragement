@@ -343,6 +343,7 @@ namespace EldenEncouragement
                     if (!changes.pastEnemies.Contains(currentEnemy) && changes.currentEnemy!= "Ignore, enemy could not be determined")
                     {
                         changesList.Add($"New enemy detected: {currentEnemy}");
+                        changesList.Add($"Current Enemy: {currentEnemy}");
                         changes.pastEnemies.Add(currentEnemy);
                         sentiment = "general";
                     }
