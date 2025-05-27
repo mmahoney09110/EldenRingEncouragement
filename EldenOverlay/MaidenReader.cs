@@ -123,7 +123,7 @@ namespace EldenEncouragement
                 return await response.Content.ReadAsStringAsync();
             }
 
-            return $"Error: {response.StatusCode}";
+            return $"I'm with you, Tarnished.";
         }
 
         public Process FindProcess(string name)
