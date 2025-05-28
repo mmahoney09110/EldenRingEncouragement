@@ -288,6 +288,7 @@ namespace EldenRingOverlay
                     break;
                 }
             }
+
             // Fullscreen check every second
             var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             fsTimer.Tick += async (s, e) =>
@@ -306,7 +307,7 @@ namespace EldenRingOverlay
                         //Console.WriteLine("Elden Ring is not in fullscreen mode. Hiding overlay.");
                         positioned = false;
                     }
-                    if (isFullscreen && (DateTime.Now - lastEventTime).TotalSeconds >= intervalESeconds && speaking == false)
+                    if (isFullscreen && (DateTime.Now - lastEventTime).TotalSeconds >= intervalESeconds && speaking == false && character != -1)
                     {
                         speaking = true;
                         bool spoke = await GetEvent(character);
@@ -321,7 +322,7 @@ namespace EldenRingOverlay
                     }
                     if (isFullscreen)
                     {
-                        await CheckCharacterSwitch();
+                        character = await CheckCharacterSwitch(character);
                     }
                 }
                 catch (Exception ex)
@@ -354,7 +355,7 @@ namespace EldenRingOverlay
                         Console.WriteLine("Elden Ring is not in fullscreen mode. Skipping encouragement text.");
                         return;
                     }
-                    if (!speaking)
+                    if (!speaking && character != -1)
                     {
                         speaking = true;
                         await GetEncouragement(character);
@@ -431,10 +432,9 @@ namespace EldenRingOverlay
             }
         }
 
-        private async Task CheckCharacterSwitch()
+        private async Task<int> CheckCharacterSwitch(int character)
         {
             // Read character from settings.ini
-            int character = -1; // default
             string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
             string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
             // Read the output file created by Lua
@@ -489,7 +489,9 @@ namespace EldenRingOverlay
                 await FadeTextBlock(AIEncouragement, fadeIn: false);
                 
                 speaking = false;
+                
             }
+            return character;
         }
 
         private void setFont()
