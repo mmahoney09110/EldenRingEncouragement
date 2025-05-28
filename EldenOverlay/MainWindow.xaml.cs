@@ -23,6 +23,8 @@ namespace EldenRingOverlay
         private double screenWidth;
         private double screenHeight;
         private int duration = 5;
+        // Global or static variable to remember the last known ID
+        private static int? lastCharacterId = null;
 
         // Win32 constants
         private const int GWL_EXSTYLE = -20;
@@ -282,7 +284,7 @@ namespace EldenRingOverlay
                 {
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
-                        character = Math.Max(0, Math.Min(result,2)); // Ensure 0 - 2
+                        character = Math.Max(0, Math.Min(result,3)); // Ensure 0 - 3
                     break;
                 }
             }
@@ -316,6 +318,10 @@ namespace EldenRingOverlay
                     else if (isFullscreen && intervalESeconds>0)
                     {
                         await reader.UpdateEvent();
+                    }
+                    if (isFullscreen)
+                    {
+                        await CheckCharacterSwitch();
                     }
                 }
                 catch (Exception ex)
@@ -425,6 +431,67 @@ namespace EldenRingOverlay
             }
         }
 
+        private async Task CheckCharacterSwitch()
+        {
+            // Read character from settings.ini
+            int character = -1; // default
+            string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+            string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
+            // Read the output file created by Lua
+            string outputFile = Path.Combine(outputDir, "saveComp.txt");
+            if (File.Exists(outputFile))
+            {
+                character = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : character;
+            }
+            // If the character has changed, update the last known ID
+            if (lastCharacterId != character && character != -1)
+            {
+                lastCharacterId = character;
+                this.Topmost = false;
+                this.Topmost = true;
+
+                speaking = true;
+
+                // Read voice from settings.ini
+                int voice = 1; // default
+                var iniLines = File.ReadAllLines("settings.ini");
+                foreach (var line in iniLines)
+                {
+                    if (line.Trim().StartsWith("Voice="))
+                    {
+                        var value = line.Split('=')[1].Trim();
+                        if (int.TryParse(value, out int result))
+                            voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                        break;
+                    }
+                }
+
+                var sentence = "Lets have a good journey, Tarnished!";
+
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    UpdateSubtitle(sentence);
+                }));
+
+                Random r = new Random();
+                int fileNumber = r.Next(1, 6);
+                string wavFilePath = $@"Audio\{character}_general_{fileNumber}.wav";
+                // play random of 5 files when speaking
+                                        
+                if (File.Exists(wavFilePath) && voice == 1)
+                {
+                    var player = new SoundPlayer(wavFilePath);
+                    player.Play();
+                }
+
+                await FadeTextBlock(AIEncouragement, fadeIn: true);
+                await Task.Delay(duration * 1000);
+                await FadeTextBlock(AIEncouragement, fadeIn: false);
+                
+                speaking = false;
+            }
+        }
+
         private void setFont()
         {
             // Set font size
@@ -497,6 +564,15 @@ namespace EldenRingOverlay
             {
                 this.Topmost = false;
                 this.Topmost = true;
+
+                string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+                string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
+                // Read the output file created by Lua
+                string outputFile = Path.Combine(outputDir, "saveComp.txt");
+                if (File.Exists(outputFile))
+                {
+                    c = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : c;
+                }
 
                 // Read voice from settings.ini
                 int voice = 1; // default
@@ -583,6 +659,15 @@ namespace EldenRingOverlay
                 this.Topmost = false;
                 this.Topmost = true;
 
+                string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+                string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
+                // Read the output file created by Lua
+                string outputFile = Path.Combine(outputDir, "saveComp.txt");
+                if (File.Exists(outputFile))
+                {
+                    c = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : c;
+                }
+
                 // Read voice from settings.ini
                 int voice = 1; // default
                 var iniLines = File.ReadAllLines("settings.ini");
@@ -653,7 +738,15 @@ namespace EldenRingOverlay
                 UpdateSubtitle(text);
             }));
 
-
+            string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+            string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
+            // Read the output file created by Lua
+            string outputFile = Path.Combine(outputDir, "saveComp.txt");
+            if (File.Exists(outputFile))
+            {
+                c = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : c;
+            }
+            lastCharacterId = c; // Update last known ID
             // Read voice from settings.ini
             int voice = 1; // default
             var iniLines = File.ReadAllLines("settings.ini");
