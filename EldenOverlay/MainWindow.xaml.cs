@@ -68,10 +68,6 @@ namespace EldenRingOverlay
             Focusable = false;
         }
 
-        // PInvoke declarations
-        [DllImport("user32.dll")]
-        static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
-
         [DllImport("user32.dll")]
         static extern bool GetWindowRect(IntPtr hwnd, out RECT lpRect);
 
@@ -376,7 +372,22 @@ namespace EldenRingOverlay
         /// </summary>
         private bool CheckFullscreenStatus()
         {
-            var hwnd = FindWindow(null, "ELDEN RING™");
+            Process[] processes = Process.GetProcessesByName("eldenring");
+            IntPtr hwnd = IntPtr.Zero;
+            if (processes.Length > 0)
+            {
+                Process gameProc = processes[0];
+
+                // Wait for MainWindowHandle to be valid
+                int attempts = 0;
+                while (hwnd == IntPtr.Zero && attempts++ < 10)
+                {
+                    gameProc.Refresh();
+                    hwnd = gameProc.MainWindowHandle;
+                    Thread.Sleep(500);
+                }
+            }
+
             if (hwnd != IntPtr.Zero && IsWindowVisible(hwnd))
             {
                 GetWindowRect(hwnd, out RECT rect);
@@ -394,8 +405,8 @@ namespace EldenRingOverlay
                 double physicalScreenWidth = SystemParameters.PrimaryScreenWidth * dpiFactorX;
                 double physicalScreenHeight = SystemParameters.PrimaryScreenHeight * dpiFactorY;
 
-                //Console.WriteLine($"Checking fullscreen: Window size: {windowWidth} x {windowHeight}");
-                //Console.WriteLine($"Physical screen size: {physicalScreenWidth} x {physicalScreenHeight}");
+                Console.WriteLine($"Checking fullscreen: Window size: {windowWidth} x {windowHeight}");
+                Console.WriteLine($"Physical screen size: {physicalScreenWidth} x {physicalScreenHeight}");
 
                 // Check if the game is in fullscreen mode
                 if (windowWidth == physicalScreenWidth && windowHeight == physicalScreenHeight)
