@@ -86,10 +86,10 @@ namespace EldenRingOverlay
         public MainWindow()
         {
             EnsureAdministrator();
-            //Cap all WPF animations (and render passes) to 15 FPS
+            //Cap all WPF animations (and render passes) to 30 FPS
             Timeline.DesiredFrameRateProperty.OverrideMetadata(
                 typeof(Timeline),
-                new FrameworkPropertyMetadata { DefaultValue = 15 }
+                new FrameworkPropertyMetadata { DefaultValue = 30 }
             );
             //AllocConsole(); // Shows console window
             InitializeComponent();
@@ -280,7 +280,7 @@ namespace EldenRingOverlay
                 {
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
-                        character = Math.Max(0, Math.Min(result,3)); // Ensure 0 - 3
+                        character = Math.Max(0, Math.Min(result,5)); // Ensure 0 - 5
                     break;
                 }
             }

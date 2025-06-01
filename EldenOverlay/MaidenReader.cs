@@ -344,7 +344,7 @@ namespace EldenEncouragement
                         changesList.Add($"New enemy detected: {currentEnemy}");
                         changesList.Add($"Current Enemy: {currentEnemy}");
                         changes.pastEnemies.Add(currentEnemy);
-                        sentiment = "general";
+                        sentiment = "worried";
                     }
 
                     if (changes.prevStats[0] != currentHP && (changes.prevStats[0] - currentHP) / currentMaxHP >= .25)
@@ -353,11 +353,15 @@ namespace EldenEncouragement
                         changesList.Add($"HP: {currentHP}");
                         changesList.Add($"Max HP: {currentMaxHP}");
                         changesList.Add($"Current Enemy: {currentEnemy}");
+                        changesList.Add($"Right Weapon: {currentWeapon}\n" +
+                        $"Left Weapon: {currentleftHand1}");
                         sentiment = "worried";
                     }
 
                     if (changes.prevStats[0] != currentHP && currentHP / currentMaxHP <= .25)
                     {
+                        changesList.Add($"Right Weapon: {currentWeapon}\n" +
+                        $"Left Weapon: {currentleftHand1}");
                         if (currentHP == 0)
                         {
                             changesList.Add($"Current Enemy: {currentEnemy}");
