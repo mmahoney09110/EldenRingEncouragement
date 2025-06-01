@@ -344,7 +344,7 @@ namespace EldenEncouragement
                         changesList.Add($"New enemy detected: {currentEnemy}");
                         changesList.Add($"Current Enemy: {currentEnemy}");
                         changes.pastEnemies.Add(currentEnemy);
-                        sentiment = "worried";
+                        sentiment = "general";
                     }
 
                     if (changes.prevStats[0] != currentHP && (changes.prevStats[0] - currentHP) / currentMaxHP >= .25)
