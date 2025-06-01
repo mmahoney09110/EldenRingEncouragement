@@ -110,7 +110,7 @@ namespace EldenEncouragement
             }
             var content = new FormUrlEncodedContent(new[]
             {
-                new KeyValuePair<string, string>("Body", "Translate your response into: " + language + "\n" + bodyValue),
+                new KeyValuePair<string, string>("Body", bodyValue + "\n They await your insight, spoken in their tongue: " + language + "."),
                 new KeyValuePair<string, string>("Character", characterValue.ToString())
             });
 
