@@ -11,6 +11,7 @@ using System.Windows.Media; // Needed for Matrix
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using EldenEncouragement;
+using EldenTTS;
 
 namespace EldenRingOverlay
 {
@@ -91,7 +92,7 @@ namespace EldenRingOverlay
                 typeof(Timeline),
                 new FrameworkPropertyMetadata { DefaultValue = 30 }
             );
-            //AllocConsole(); // Shows console window
+            AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
             GetScreenSize();
@@ -284,6 +285,7 @@ namespace EldenRingOverlay
                     break;
                 }
             }
+            var tts = new EldenTTS.EldenTTS("settings.ini");
 
             // Fullscreen check every second
             var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -306,7 +308,7 @@ namespace EldenRingOverlay
                     if (isFullscreen && (DateTime.Now - lastEventTime).TotalSeconds >= intervalESeconds && speaking == false && character != -1)
                     {
                         speaking = true;
-                        bool spoke = await GetEvent(character);
+                        bool spoke = await GetEvent(character, tts);
                         if (spoke)
                         {
                             lastEventTime = DateTime.Now;
@@ -336,7 +338,7 @@ namespace EldenRingOverlay
                 {
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
-                        intervalSeconds = Math.Max(300, result); // Ensure 300 second or more
+                        intervalSeconds = Math.Max(0, result); // Ensure 0 second or more
                     break;
                 }
             }
@@ -354,7 +356,7 @@ namespace EldenRingOverlay
                     if (!speaking && character != -1)
                     {
                         speaking = true;
-                        await GetEncouragement(character);
+                        await GetEncouragement(character, tts);
                         return;
                     }
                 }
@@ -559,7 +561,7 @@ namespace EldenRingOverlay
             return list.ToArray();
         }
 
-        private async Task GetEncouragement(int c)
+        private async Task GetEncouragement(int c, EldenTTS.EldenTTS tts)
         {
             string text = await reader.GetEncouragement(c);
 
@@ -633,6 +635,23 @@ namespace EldenRingOverlay
                         temp = fileNumber;  
                     }
 
+                    // Read azure from settings.ini
+                    var iniLine = File.ReadAllLines("settings.ini");
+
+                    foreach (var line in iniLines)
+                    {
+                        if (line.Trim().StartsWith("azure_key="))
+                        {
+                            var value = line.Split('=')[1].Trim();
+                            if (!string.IsNullOrWhiteSpace(value))
+                                await tts.SynthesizeToFileAsync(sentence, "output.wav");
+                                var player = new SoundPlayer("output.wav");
+                                player.Play();
+                            break;
+                        }
+                    }
+                    
+
                     if (File.Exists(wavFilePath) && voice == 1)
                     {
                         var player = new SoundPlayer(wavFilePath);
@@ -647,7 +666,7 @@ namespace EldenRingOverlay
             }
         }
 
-        private async Task<bool> GetEvent(int c)
+        private async Task<bool> GetEvent(int c, EldenTTS.EldenTTS tts)
         {
             string[] text = await reader.GetEvent(c);
 
@@ -725,6 +744,22 @@ namespace EldenRingOverlay
                         }
                         wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
                         temp = fileNumber;
+                    }
+
+                    // Read azure from settings.ini
+                    var iniLine = File.ReadAllLines("settings.ini");
+
+                    foreach (var line in iniLines)
+                    {
+                        if (line.Trim().StartsWith("azure_key="))
+                        {
+                            var value = line.Split('=')[1].Trim();
+                            if (!string.IsNullOrWhiteSpace(value))
+                                await tts.SynthesizeToFileAsync(sentence, "output.wav");
+                                var player = new SoundPlayer("output.wav");
+                                player.Play();
+                                break;
+                        }
                     }
 
                     if (File.Exists(wavFilePath) && voice == 1)

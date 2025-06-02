@@ -23,6 +23,9 @@ namespace EldenEncouragement
         public bool runes { get; set; } = false;
         public string currentEnemy { get; set; } = "";
         public HashSet<string> pastEnemies { get; set; } = new();
+        public HashSet<string> defeatedEnemies { get; set; } = new();
+
+        public int relationship { get; set; } = 0; // Relationship level with maiden
     }
 
     internal class MaidenReader
@@ -39,10 +42,8 @@ namespace EldenEncouragement
                 using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
                 var addresses = Addresses.GetAddresses();
 
-                string stats = await reader.PrintPlayerStats(addresses);
-                var body = (prevStats + "\n" + "Current stats:\n" + stats);
-                prevStats = "Last sent stats:\n" + stats;
-
+                string body = await reader.PrintPlayerStats(addresses);
+                
                 return await SendBodyAsync(body, character);
 
             }
@@ -176,27 +177,40 @@ namespace EldenEncouragement
         {
             return Task.Run(() =>
             {
+                var name = ReadString(addrs.NameOffset, 64);
 
-                return
-                    $"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Great Rune Active?: {ReadChain(addrs.GROffsets) & 0x00000000000FFFF}\n" +
-                    $"Death Count: {ReadChain(addrs.DeathOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Player Name: {ReadString(addrs.NameOffset, 64)}\n" +
-                    $"Player level: {ReadChain(addrs.LevelOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Runes: {ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Class: {ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames)}\n" +
-                    $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
-                    $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
-                    $"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
-                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}\n";
+                var changes = LoadChanges();
+
+                string relationshipPrompt = changes.relationship switch
+                {
+                    >= 90 => $"You trust the Tarnished, {name}, implicitly. Speak warmly, share secrets, praise their deeds, or offer rare encouragement as a close companion would.",
+
+                    >= 75 => $"You feel positively toward the Tarnished, {name}. Speak with respect and admiration, acknowledging their progress and steady strength.",
+
+                    >= 50 => $"You see promise in the Tarnished, {name}. Offer measured praise and cautious optimism, encouraging their growth but remaining watchful.",
+
+                    >= 30 => $"You regard the Tarnished, {name}, as an acquaintance. Speak neutrally but politely, acknowledging their efforts without undue warmth.",
+
+                    >= 0 => $"You are indifferent to the Tarnished, {name}. Speak factually and without emotion, treating them as a stranger.",
+
+                    >= -25 => $"You remain uncertain of the Tarnished, {name}'s, worth. Use a reserved tone, neither openly hostile nor friendly, and hint at your doubts.",
+
+                    >= -50 => $"You find the Tarnished, {name}, often misguided. Speak with mild criticism and warning, urging caution and improvement.",
+
+                    >= -75 => $"You feel obligated to stay near the Tarnished, {name}, but harbor no loyalty. Use a cold, distant tone, pointing out failures and weaknesses.",
+
+                    _ => $"You distrust and disdain the Tarnished, {name}, deeply. Speak harshly and with contempt, questioning their worth and resolve."
+                };
+                return relationshipPrompt;
             });
+
         }
 
         public string ResolveEnemy()
         {
             ulong ptr = 0;
-           
+            ulong isDead = 0;
+
             string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
             string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
             // Read the output file created by Lua
@@ -227,7 +241,11 @@ namespace EldenEncouragement
             }
             try
             {
+                //Enemy Id is at +0x60 from the address
                 ptr = ReadPointer(address + (uint)0x60);
+                isDead = ReadPointer(address + (uint)0x58);
+                isDead = ReadPointer(isDead + (uint)0xC8);
+                isDead = ReadPointer(isDead + (uint)0x24);
             }
             catch (Exception ex)
             {
@@ -235,15 +253,20 @@ namespace EldenEncouragement
                 return "None";
             }
             
-            var locVal = ptr & 0xFFFFFFFF; // Mask to 32 bits, as the enemy location is stored in a 32-bit pointer
+            var locVal = ptr & 0xFFFFFFFF; // Mask to 32 bits, as the enemy ID is stored in a 32-bit pointer
+            var isDeadVal = isDead & 0xFF; // Mask to 8 bits, as the enemy death is stored in a 8-bit pointer
             // Read the enemy name from the pointer
-            if (NpcDict.NpcMap.TryGetValue((long)locVal, out var enemyName))
+            if (isDead != 1 && NpcDict.NpcMap.TryGetValue((long)locVal, out var enemyName))
             {
                 return ($"{enemyName}");
             }
-            else
+            else if(NpcDict.NpcMap.TryGetValue((long)locVal, out var enemyName1))
             {
-                return ("None");
+                return ($"Defeated {enemyName1}");
+            }
+            else 
+            { 
+                return "None";
             }
 
         }
@@ -291,6 +314,8 @@ namespace EldenEncouragement
                 double currentRunes = ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF;
 
                 string currentName = ReadString(addrs.NameOffset, 64);
+                string currentClass = ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames);
+                string currentGender = ResolveFromTable(addrs.SexOffsets, Addresses.SexNames);
                 string currentLocation = ResolveLocation(addrs.LocationOffsets);
                 string currentWeapon = ResolveWeapon(addrs.Weapon1Offsets);
                 string currentWeapon2 = ResolveWeapon(addrs.Weapon2Offsets);
@@ -298,7 +323,6 @@ namespace EldenEncouragement
                 string currentleftHand1 = ResolveWeapon(addrs.leftHand1Offset);
                 string currentEnemy = ResolveEnemy();
 
-                var changesList = new List<string>();
                 // If this is the first time, assign the values to the previous stats
                 if (changes.prevStats == null)
                 {
@@ -318,131 +342,197 @@ namespace EldenEncouragement
                     changes.runes = false;
                     changes.currentEnemy = currentEnemy;
                     changes.pastEnemies = new HashSet<string>();
+                    changes.defeatedEnemies = new HashSet<string>();
                     changes.pastEnemies.Add(currentEnemy);
+                    changes.relationship = 0; // Initial relationship level with maiden
+
                     SaveChanges(changes);
+
                     sentiment = "general";
+
                     return new string[] { "Event detected: First time talking to you!\n" +
-                    $"HP: {ReadChain(addrs.HPOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Max HP: {ReadChain(addrs.MaxHPOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Great Rune Active?: {ReadChain(addrs.GROffsets) & 0x00000000000FFFF}\n" +
-                    $"Death Count: {ReadChain(addrs.DeathOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Player Name: {ReadString(addrs.NameOffset, 64)}\n" +
-                    $"Player level: {ReadChain(addrs.LevelOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Runes: {ReadChain(addrs.RunesOffsets) & 0x00000000FFFFFFFF}\n" +
-                    $"Class: {ResolveFromTable(addrs.ClassOffsets, Addresses.ClassNames)}\n" +
-                    $"Gender: {ResolveFromTable(addrs.SexOffsets, Addresses.SexNames)}\n" +
-                    $"Location: {ResolveLocation(addrs.LocationOffsets)}\n" +
-                    $"Right Weapon: {ResolveWeapon(addrs.Weapon1Offsets)}\n" +
-                    $"Left Weapon: {ResolveWeapon(addrs.leftHand1Offset)}\n"+
-                    $"Current Enemy: {ResolveEnemy()}\n", sentiment};
+                    $"HP: {currentHP}\n" +
+                    $"Max HP: {currentMaxHP}\n" +
+                    $"Great Rune Active?: {currentGR}\n" +
+                    $"Death Count: {currentDeath}\n" +
+                    $"Player Name: {currentName}\n" +
+                    $"Player level: {currentLevel}\n" +
+                    $"Runes: {currentRunes}\n" +
+                    $"Class: {currentClass}\n" +
+                    $"Gender: {currentGender}\n" +
+                    $"Location: {currentLocation}\n" +
+                    $"Right Weapon: {currentWeapon}\n" +
+                    $"Left Weapon: {currentleftHand1}\n"+
+                    $"Current Enemy: {currentEnemy}\n"+
+                    $"Your relationship to the Tarnished is neutral. Speak factually with little emotion.", sentiment};
                 }
                 else
                 {
-                    // Compare current stats with previous stats 
-                    if (!changes.pastEnemies.Contains(currentEnemy) && changes.currentEnemy!= "None")
+                    List<string> changesList = new();
+
+                    // Helper methods
+                    void AddHPInfo()
+                    {
+                        changesList.Add($"HP: {currentHP}");
+                        changesList.Add($"Max HP: {currentMaxHP}");
+                    }
+
+                    void AddWeaponInfo()
+                    {
+                        changesList.Add($"Right Weapon: {currentWeapon}\nLeft Weapon: {currentleftHand1}");
+                    }
+
+                    void AddEnemyInfo()
+                    {
+                        if (!string.IsNullOrEmpty(currentEnemy) && currentEnemy != "None")
+                            changesList.Add($"Current Enemy: {currentEnemy}");
+                    }
+
+                    void SetSentiment(string newSentiment)
+                    {
+                        if (sentiment != "worried" && sentiment != "death")
+                            sentiment = newSentiment;
+                    }
+
+                    // Event: New Enemy Detected
+                    if (!changes.pastEnemies.Contains(currentEnemy) && currentEnemy != "None")
                     {
                         changesList.Add($"New enemy detected: {currentEnemy}");
-                        changesList.Add($"Current Enemy: {currentEnemy}");
+                        AddWeaponInfo();
+                        AddEnemyInfo();
                         changes.pastEnemies.Add(currentEnemy);
-                        sentiment = "general";
+                        changes.relationship += 1;
+                        SetSentiment("general");
                     }
 
-                    if (changes.prevStats[0] != currentHP && (changes.prevStats[0] - currentHP) / currentMaxHP >= .25)
+                    // Event: Enemy Defeated
+                    if (!changes.defeatedEnemies.Contains(currentEnemy) && currentEnemy.Contains("Defeated"))
                     {
-                        changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
-                        changesList.Add($"HP: {currentHP}");
-                        changesList.Add($"Max HP: {currentMaxHP}");
-                        changesList.Add($"Current Enemy: {currentEnemy}");
-                        changesList.Add($"Right Weapon: {currentWeapon}\n" +
-                        $"Left Weapon: {currentleftHand1}");
-                        sentiment = "worried";
+                        changesList.Add($"The Tarnished, {currentName}, defeated {currentEnemy} for the first time!");
+                        AddWeaponInfo();
+                        AddEnemyInfo();
+                        changes.defeatedEnemies.Add(currentEnemy);
+                        changes.relationship += 2;
+                        sentiment = "impressed";
                     }
 
-                    if (changes.prevStats[0] != currentHP && currentHP / currentMaxHP <= .25)
+                    bool spokenOnHP = false;
+
+                    // Event: Low HP or Death
+                    bool hpLow = currentHP / currentMaxHP <= 0.25;
+                    if (changes.prevStats[0] != currentHP && hpLow)
                     {
-                        changesList.Add($"Right Weapon: {currentWeapon}\n" +
-                        $"Left Weapon: {currentleftHand1}");
+                        AddWeaponInfo();
+                        spokenOnHP = true;
                         if (currentHP == 0)
                         {
-                            changesList.Add($"Current Enemy: {currentEnemy}");
+                            AddEnemyInfo();
                             changesList.Add($"{currentName} died! Current HP: {currentHP} of {currentMaxHP} HP");
                             changesList.Add($"Death Count: {currentDeath}");
-                            changesList.Add($"HP: {currentHP}");
-                            changesList.Add($"Max HP: {currentMaxHP}");
+                            AddHPInfo();
+                            changes.relationship -= 5;
                             sentiment = "death";
                         }
-                        else { 
+                        else
+                        {
                             changesList.Add($"HP is low: {currentHP} of {currentMaxHP} HP");
-                            changesList.Add($"Current Enemy: {currentEnemy}");
-                            changesList.Add($"HP: {currentHP}");
-                            changesList.Add($"Max HP: {currentMaxHP}");
-                            sentiment = "worried";
+                            AddWeaponInfo();
+                            AddHPInfo();
+                            AddEnemyInfo();
+                            changes.relationship -= 2;
+                            SetSentiment("worried");
                         }
                     }
+
+                    // Event: Big HP Drop
+                    double hpDropRatio = (changes.prevStats[0] - currentHP) / currentMaxHP;
+                    if (changes.prevStats[0] != currentHP && hpDropRatio >= 0.25 && !spokenOnHP)
+                    {
+                        changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
+                        AddHPInfo();
+                        AddEnemyInfo();
+                        changes.relationship -= 1;
+                        AddWeaponInfo();
+                        SetSentiment("worried");
+                    }
+
+                    // Event: Great Rune Activated
                     if (changes.prevStats[2] != currentGR && currentGR == 1)
                     {
-                        changesList.Add($"Great Rune Activated!");
+                        changesList.Add("Great Rune Activated!");
                         changesList.Add($"Great Rune Active?: {currentGR}");
-                        changesList.Add($"HP: {currentHP}");
-                        changesList.Add($"Max HP: {currentMaxHP}");
-                        if (sentiment != "worried") sentiment = "impressed";
+                        AddHPInfo();
+                        changes.relationship += 3;
+                        SetSentiment("impressed");
                     }
-                    if (changes.prevStats[3] != currentDeath)
-                    {
-                        changesList.Add($"Death count changed from {changes.prevStats[3]} to {currentDeath}");
-                        changesList.Add($"Death Count: {currentDeath}");
-                        sentiment = "death";
-                    }
+
+                    // Event: Level Up
                     if (changes.prevStats[4] != currentLevel)
                     {
                         changesList.Add($"Level changed from {changes.prevStats[4]} to {currentLevel}");
                         changesList.Add($"Player level: {currentLevel}");
-                        changesList.Add($"HP: {currentHP}");
-                        changesList.Add($"Max HP: {currentMaxHP}");
-                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                        AddHPInfo();
+                        changes.relationship += 4;
+                        SetSentiment("impressed");
                     }
-                    var runeMultiplier = Math.Max(0, ((currentLevel + 81) - 92) * .02);
-                    var runeCost = (runeMultiplier + .1) * (Math.Pow(currentLevel + 81, 2) + 1);
-                    if (currentRunes >= runeCost && changes.runes==false)
+
+                    // Event: Enough Runes to Level Up
+                    double runeMultiplier = Math.Max(0, ((currentLevel + 81) - 92) * 0.02);
+                    double runeCost = (runeMultiplier + 0.1) * (Math.Pow(currentLevel + 81, 2) + 1);
+                    if (currentRunes >= runeCost && !changes.runes)
                     {
                         changes.runes = true;
                         changesList.Add($"Enough runes to level up! Current Runes = {currentRunes}");
                         changesList.Add($"Runes: {currentRunes}");
-                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
+                        changes.relationship += 1;
+                        SetSentiment("impressed");
                     }
                     else if (currentRunes < runeCost)
                     {
                         changes.runes = false;
                     }
+
+                    // Event: New Location
                     if (!changes.visitedLocations.Contains(currentLocation))
                     {
-                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                         changesList.Add($"New location visited: {currentLocation}");
                         changesList.Add($"Location: {currentLocation}");
                         changes.visitedLocations.Add(currentLocation);
-                        changes.prevLocation = currentLocation;
+                        changes.relationship += 1;
+                        SetSentiment("impressed");
                     }
 
+                    // Event: New Right Weapon
                     if (!changes.prevWeapons.Contains(currentWeapon))
                     {
-                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                         changesList.Add($"New right hand weapon equipped from {changes.prevWeapon} to {currentWeapon}");
-                        changesList.Add($"Right Weapon: {currentWeapon}\n" +
-                        $"Left Weapon: {currentleftHand1}");
+                        AddWeaponInfo();
                         changes.prevWeapons.Add(currentWeapon);
                         changes.prevWeapon = currentWeapon;
+                        changes.relationship += 1;
+                        SetSentiment("impressed");
                     }
 
+                    // Event: New Left Weapon
                     if (!changes.prevWeapons.Contains(currentleftHand1))
                     {
-                        if (sentiment != "worried" && sentiment != "death") sentiment = "impressed";
                         changesList.Add($"New left hand weapon equipped from {changes.prevleftHand1} to {currentleftHand1}");
-                        changesList.Add($"Right Weapon: {currentWeapon}\n" +
-                        $"Left Weapon: {currentleftHand1}");
+                        AddWeaponInfo();
                         changes.prevWeapons.Add(currentleftHand1);
                         changes.prevleftHand1 = currentleftHand1;
+                        changes.relationship += 1;
+                        SetSentiment("impressed");
                     }
 
+                    // Final State Update
+                    if(changes.relationship > 100)
+                    {
+                        changes.relationship = 100; // Cap relationship at 100
+                    }
+                    else if(changes.relationship < -100)
+                    {
+                        changes.relationship = -100; // Cap relationship at -100
+                    }
                     changes.currentEnemy = currentEnemy;
                     changes.prevLocation = currentLocation;
                     changes.prevWeapon = currentWeapon;
@@ -451,13 +541,25 @@ namespace EldenEncouragement
                     changes.prevleftHand1 = currentleftHand1;
                     changes.prevStats = new double[] { currentHP, currentMaxHP, currentGR, currentDeath, currentLevel, currentRunes };
 
-                    // Save changes to file
-                    SaveChanges(changes);
+                    string bondInstruction = changes.relationship switch
+                    {
+                        >= 90 => "Your relationship to the Tarnished is bonded. Speak with warmth, loyalty, and deep trust.",
+                        >= 75 => "Your relationship to the Tarnished is very close. Speak as a steadfast and caring ally.",
+                        >= 50 => "Your relationship to the Tarnished is friendly. Speak supportively but maintain some reserve.",
+                        >= 30 => "Your relationship to the Tarnished is cautiously optimistic. Be polite but guarded.",
+                        >= 10 => "Your relationship to the Tarnished is neutral. Speak factually with little emotion.",
+                        >= -10 => "Your relationship to the Tarnished is uneasy. Speak with suspicion and minimal empathy.",
+                        >= -30 => "Your relationship to the Tarnished is concerned. Speak cautiously, implying distrust and wariness.",
+                        >= -50 => "Your relationship to the Tarnished is distant. Speak as you would to someone unreliable, showing no empathy.",
+                        >= -75 => "Your relationship to the Tarnished is antagonistic. Speak with coldness and little regard.",
+                        _ => "Your relationship to the Tarnished is hostile. Speak coldly, with disdain and suspicion."
+                    };
 
-                    // If there are any changes, log them
+                    // Save and Return
+                    SaveChanges(changes);
                     return changesList.Count > 0
-                    ? new string[2] { $"Player Name: {currentName}\nEvent detected: {string.Join("\n", changesList)}",sentiment }
-                    : new string[1] {"No changes detected."};
+                        ? new[] { $"Player Name: {currentName}\nEvent detected: {string.Join("\n", changesList)} \n{bondInstruction}", sentiment }
+                        : new[] { "No changes detected." };
                 }
             });
         }
