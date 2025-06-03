@@ -11,7 +11,6 @@ using System.Windows.Media; // Needed for Matrix
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using EldenEncouragement;
-using EldenTTS;
 
 namespace EldenRingOverlay
 {
@@ -92,7 +91,7 @@ namespace EldenRingOverlay
                 typeof(Timeline),
                 new FrameworkPropertyMetadata { DefaultValue = 30 }
             );
-            AllocConsole(); // Shows console window
+            //AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
             GetScreenSize();
@@ -285,7 +284,24 @@ namespace EldenRingOverlay
                     break;
                 }
             }
-            var tts = new EldenTTS.EldenTTS("settings.ini");
+
+            var Line = File.ReadAllLines("settings.ini");
+            EldenTTS tts = null;
+            foreach (var line in Line)
+            {
+                if (line.Trim().StartsWith("azure_key="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        // Initialize EldenTTS with settings.ini
+                        tts = new EldenTTS("settings.ini");
+                    }
+                    break;
+                }
+            }
+
+            
 
             // Fullscreen check every second
             var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -297,7 +313,7 @@ namespace EldenRingOverlay
                     if (isFullscreen && !positioned)
                     {
                         Console.WriteLine("Elden Ring is in fullscreen mode. Positioning overlay.");
-                        PositionOverlayRelativeToGameWindow(new RECT(),character);
+                        PositionOverlayRelativeToGameWindow(new RECT(),character,tts);
                         positioned = true;
                     }
                     else if (!isFullscreen)
@@ -320,7 +336,7 @@ namespace EldenRingOverlay
                     }
                     if (isFullscreen)
                     {
-                        character = await CheckCharacterSwitch(character);
+                        character = await CheckCharacterSwitch(character,tts);
                     }
                 }
                 catch (Exception ex)
@@ -445,7 +461,7 @@ namespace EldenRingOverlay
             }
         }
 
-        private async Task<int> CheckCharacterSwitch(int character)
+        private async Task<int> CheckCharacterSwitch(int character, EldenTTS tts)
         {
             // Read character from settings.ini
             string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
@@ -485,6 +501,18 @@ namespace EldenRingOverlay
                 {
                     UpdateSubtitle(sentence);
                 }));
+
+                // Azure voice if set
+                if (tts != null)
+                {
+                    try { await tts.SynthesizeToFileAsync(sentence, "output.wav", "general", character); }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error generating voice: {ex.Message}");
+                    }
+                    var player = new SoundPlayer("output.wav");
+                    player.Play();
+                }
 
                 Random r = new Random();
                 int fileNumber = r.Next(1, 6);
@@ -561,7 +589,7 @@ namespace EldenRingOverlay
             return list.ToArray();
         }
 
-        private async Task GetEncouragement(int c, EldenTTS.EldenTTS tts)
+        private async Task GetEncouragement(int c, EldenTTS tts)
         {
             string text = await reader.GetEncouragement(c);
 
@@ -635,22 +663,13 @@ namespace EldenRingOverlay
                         temp = fileNumber;  
                     }
 
-                    // Read azure from settings.ini
-                    var iniLine = File.ReadAllLines("settings.ini");
-
-                    foreach (var line in iniLines)
+                    // Azure voice if set
+                    if (tts != null)
                     {
-                        if (line.Trim().StartsWith("azure_key="))
-                        {
-                            var value = line.Split('=')[1].Trim();
-                            if (!string.IsNullOrWhiteSpace(value))
-                                await tts.SynthesizeToFileAsync(sentence, "output.wav");
-                                var player = new SoundPlayer("output.wav");
-                                player.Play();
-                            break;
-                        }
+                        await tts.SynthesizeToFileAsync(sentence, "output.wav", "general", c);
+                        var player = new SoundPlayer("output.wav");
+                        player.Play();
                     }
-                    
 
                     if (File.Exists(wavFilePath) && voice == 1)
                     {
@@ -666,7 +685,7 @@ namespace EldenRingOverlay
             }
         }
 
-        private async Task<bool> GetEvent(int c, EldenTTS.EldenTTS tts)
+        private async Task<bool> GetEvent(int c, EldenTTS tts)
         {
             string[] text = await reader.GetEvent(c);
 
@@ -746,20 +765,17 @@ namespace EldenRingOverlay
                         temp = fileNumber;
                     }
 
-                    // Read azure from settings.ini
-                    var iniLine = File.ReadAllLines("settings.ini");
-
-                    foreach (var line in iniLines)
+                    // Azure voice if set
+                    if (tts != null)
                     {
-                        if (line.Trim().StartsWith("azure_key="))
+                        try { await tts.SynthesizeToFileAsync(sentence, "output.wav", sentiment, c); }
+                        catch (Exception ex)
                         {
-                            var value = line.Split('=')[1].Trim();
-                            if (!string.IsNullOrWhiteSpace(value))
-                                await tts.SynthesizeToFileAsync(sentence, "output.wav");
-                                var player = new SoundPlayer("output.wav");
-                                player.Play();
-                                break;
+                            Console.WriteLine($"Error generating voice: {ex.Message}");
+                            return false; // Return false if TTS fails
                         }
+                        var player = new SoundPlayer("output.wav");
+                        player.Play();
                     }
 
                     if (File.Exists(wavFilePath) && voice == 1)
@@ -777,7 +793,7 @@ namespace EldenRingOverlay
             return true;
         }
 
-        private async Task Welcome(int c)
+        private async Task Welcome(int c, EldenTTS tts)
         {
             string text = "Welcome back, tarnished";
 
@@ -807,6 +823,18 @@ namespace EldenRingOverlay
                         voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
                     break;
                 }
+            }
+
+            // Azure voice if set
+            if (tts != null)
+            {
+                try { await tts.SynthesizeToFileAsync(text, "output.wav","general", c); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error generating voice: {ex.Message}");
+                }
+                var player = new SoundPlayer("output.wav");
+                player.Play();
             }
 
             if (File.Exists($@"Audio\{c}_welcome.wav") && voice == 1)
@@ -886,7 +914,7 @@ namespace EldenRingOverlay
             screenHeight = SystemParameters.PrimaryScreenHeight * dpiFactorY;
 
         }
-        private async void PositionOverlayRelativeToGameWindow(RECT rect,int c)
+        private async void PositionOverlayRelativeToGameWindow(RECT rect,int c, EldenTTS tts)
         {
             this.Topmost = false;
             this.Topmost = true;
@@ -909,7 +937,7 @@ namespace EldenRingOverlay
 
             if (!speaking) 
             { 
-            await Welcome(c);
+            await Welcome(c, tts);
             }
 
         }

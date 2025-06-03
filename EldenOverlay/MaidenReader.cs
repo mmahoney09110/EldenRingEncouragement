@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -24,8 +25,7 @@ namespace EldenEncouragement
         public string currentEnemy { get; set; } = "";
         public HashSet<string> pastEnemies { get; set; } = new();
         public HashSet<string> defeatedEnemies { get; set; } = new();
-
-        public int relationship { get; set; } = 0; // Relationship level with maiden
+        public double relationship { get; set; } = 0; // Relationship level with maiden
     }
 
     internal class MaidenReader
@@ -109,9 +109,27 @@ namespace EldenEncouragement
                     break;
                 }
             }
+
+            // Read character from settings.ini
+            int sentencesLimit = 99; // default
+            var Lines = File.ReadAllLines("settings.ini");
+            foreach (var line in Lines)
+            {
+                if (line.Trim().StartsWith("SentenceLimit="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (int.TryParse(value, out int result))
+                        sentencesLimit = result;
+                    break;
+                }
+            }
+            if (sentencesLimit <= 0)
+            {
+                sentencesLimit = 99; // default to 99 if not set or invalid
+            }
             var content = new FormUrlEncodedContent(new[]
             {
-                new KeyValuePair<string, string>("Body", bodyValue + "\n They await your insight, spoken in their tongue: " + language + "."),
+                new KeyValuePair<string, string>("Body", "The Tarnished wish for you to comment on this in under "+ sentencesLimit + " sentences.\n"+ bodyValue + "\n They await your insight, spoken in their tongue: " + language + "."),
                 new KeyValuePair<string, string>("Character", characterValue.ToString())
             });
 
@@ -344,7 +362,7 @@ namespace EldenEncouragement
                     changes.pastEnemies = new HashSet<string>();
                     changes.defeatedEnemies = new HashSet<string>();
                     changes.pastEnemies.Add(currentEnemy);
-                    changes.relationship = 0; // Initial relationship level with maiden
+                    changes.relationship = 10; // Initial relationship level with maiden
 
                     SaveChanges(changes);
 
@@ -412,7 +430,7 @@ namespace EldenEncouragement
                         AddWeaponInfo();
                         AddEnemyInfo();
                         changes.defeatedEnemies.Add(currentEnemy);
-                        changes.relationship += 2;
+                        changes.relationship += 5;
                         sentiment = "impressed";
                     }
 
@@ -430,7 +448,7 @@ namespace EldenEncouragement
                             changesList.Add($"{currentName} died! Current HP: {currentHP} of {currentMaxHP} HP");
                             changesList.Add($"Death Count: {currentDeath}");
                             AddHPInfo();
-                            changes.relationship -= 5;
+                            changes.relationship -= 1;
                             sentiment = "death";
                         }
                         else
@@ -439,7 +457,7 @@ namespace EldenEncouragement
                             AddWeaponInfo();
                             AddHPInfo();
                             AddEnemyInfo();
-                            changes.relationship -= 2;
+                            changes.relationship -= .5;
                             SetSentiment("worried");
                         }
                     }
@@ -451,7 +469,7 @@ namespace EldenEncouragement
                         changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
                         AddHPInfo();
                         AddEnemyInfo();
-                        changes.relationship -= 1;
+                        changes.relationship -= .25;
                         AddWeaponInfo();
                         SetSentiment("worried");
                     }
@@ -498,7 +516,7 @@ namespace EldenEncouragement
                         changesList.Add($"New location visited: {currentLocation}");
                         changesList.Add($"Location: {currentLocation}");
                         changes.visitedLocations.Add(currentLocation);
-                        changes.relationship += 1;
+                        changes.relationship += 2;
                         SetSentiment("impressed");
                     }
 
@@ -509,7 +527,7 @@ namespace EldenEncouragement
                         AddWeaponInfo();
                         changes.prevWeapons.Add(currentWeapon);
                         changes.prevWeapon = currentWeapon;
-                        changes.relationship += 1;
+                        changes.relationship += 2;
                         SetSentiment("impressed");
                     }
 
@@ -520,12 +538,14 @@ namespace EldenEncouragement
                         AddWeaponInfo();
                         changes.prevWeapons.Add(currentleftHand1);
                         changes.prevleftHand1 = currentleftHand1;
-                        changes.relationship += 1;
+                        changes.relationship += 2;
                         SetSentiment("impressed");
                     }
 
+                    changes.relationship += .005;
+
                     // Final State Update
-                    if(changes.relationship > 100)
+                    if (changes.relationship > 100)
                     {
                         changes.relationship = 100; // Cap relationship at 100
                     }
@@ -544,12 +564,12 @@ namespace EldenEncouragement
                     string bondInstruction = changes.relationship switch
                     {
                         >= 90 => "Your relationship to the Tarnished is bonded. Speak with warmth, loyalty, and deep trust.",
-                        >= 75 => "Your relationship to the Tarnished is very close. Speak as a steadfast and caring ally.",
-                        >= 50 => "Your relationship to the Tarnished is friendly. Speak supportively but maintain some reserve.",
-                        >= 30 => "Your relationship to the Tarnished is cautiously optimistic. Be polite but guarded.",
-                        >= 10 => "Your relationship to the Tarnished is neutral. Speak factually with little emotion.",
-                        >= -10 => "Your relationship to the Tarnished is uneasy. Speak with suspicion and minimal empathy.",
-                        >= -30 => "Your relationship to the Tarnished is concerned. Speak cautiously, implying distrust and wariness.",
+                        >= 55 => "Your relationship to the Tarnished is very close. Speak as a steadfast and caring ally.",
+                        >= 30 => "Your relationship to the Tarnished is friendly. Speak supportively but maintain some reserve.",
+                        >= 20 => "Your relationship to the Tarnished is cautiously optimistic. Be polite but guarded.",
+                        >= -10 => "Your relationship to the Tarnished is neutral. Speak factually with little emotion.",
+                        >= -25 => "Your relationship to the Tarnished is uneasy. Speak with suspicion and minimal empathy.",
+                        >= -40 => "Your relationship to the Tarnished is concerned. Speak cautiously, implying distrust and wariness.",
                         >= -50 => "Your relationship to the Tarnished is distant. Speak as you would to someone unreliable, showing no empathy.",
                         >= -75 => "Your relationship to the Tarnished is antagonistic. Speak with coldness and little regard.",
                         _ => "Your relationship to the Tarnished is hostile. Speak coldly, with disdain and suspicion."
