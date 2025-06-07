@@ -358,28 +358,28 @@ namespace EldenRingOverlay
                         switch (flag)
                         {
                             case "AAT":
-                                if (!speaking)
+                                if (!speaking && character !=-1)
                                 {
                                     Console.WriteLine("AAT event detected, speaking encouragement.");
                                     await AskCompanion(character, tts, "AAT");
                                 }
                                 break;
                             case "AFY":
-                                if (!speaking)
+                                if (!speaking && character != -1)
                                 {
                                     Console.WriteLine("AFY event detected, speaking encouragement.");
                                     await AskCompanion(character, tts, "AFY");
                                 }
                                 break;
                             case "ABR":
-                                if (!speaking)
+                                if (!speaking && character != -1)
                                 {
                                     Console.WriteLine("ABR event detected, speaking encouragement.");
                                     await AskCompanion(character, tts, "ABR");
                                 }
                                 break;
                             case "AFA":
-                                if (!speaking)
+                                if (!speaking && character != -1)
                                 {
                                     Console.WriteLine("AFA event detected, speaking encouragement.");
                                     await AskCompanion(character, tts, "AFA");

@@ -982,9 +982,9 @@ namespace EldenEncouragement
                         }
                     }
 
-                    // Event: Big HP Drop
+                    bool isRatioStable = Math.Abs((changes.prevStats[0] / changes.prevStats[1]) - (currentHP / currentMaxHP)) < 0.01;
                     double hpDropRatio = (changes.prevStats[0] - currentHP) / currentMaxHP;
-                    if (changes.prevStats[0] != currentHP && hpDropRatio >= 0.25 && !spokenOnHP)
+                    if (changes.prevStats[0] != currentHP && hpDropRatio >= 0.25 && !spokenOnHP && !isRatioStable)
                     {
                         changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
                         AddHPInfo();
