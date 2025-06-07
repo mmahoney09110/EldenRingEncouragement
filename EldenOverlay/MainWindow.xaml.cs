@@ -24,7 +24,7 @@ namespace EldenRingOverlay
         private double screenHeight;
         private int duration = 5;
         // Global or static variable to remember the last known ID
-        private static int? lastCharacterId = null;
+        private static int lastCharacterId = -1;
 
         // Win32 constants
         private const int GWL_EXSTYLE = -20;
@@ -225,6 +225,14 @@ namespace EldenRingOverlay
                     missingCounter++;
                     if (missingCounter >= MissingThreshold)
                     {
+                        string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+                        string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
+                        // Read the output file created by Lua
+                        string outputFile = Path.Combine(outputDir, "isDead.txt");
+                        if (File.Exists(outputFile))
+                        {
+                            File.WriteAllText(outputFile, "0"); // Clear the file
+                        }
                         helper.StopHelper(); // Stop the helper process if Elden Ring is not running
                         Application.Current.Shutdown();
                     }
@@ -280,7 +288,8 @@ namespace EldenRingOverlay
                 {
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
-                        character = Math.Max(0, Math.Min(result,5)); // Ensure 0 - 5
+                        character = Math.Max(0, Math.Min(result, 6)); // Ensure 0 - 6
+                    lastCharacterId = character; // Set the last known ID
                     break;
                 }
             }
@@ -300,8 +309,7 @@ namespace EldenRingOverlay
                     break;
                 }
             }
-
-            
+            bool isDead = false;
 
             // Fullscreen check every second
             var fsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -309,11 +317,15 @@ namespace EldenRingOverlay
             {
                 try
                 {
+                    if (!speaking)
+                    {
+                        isDead = await isCompanionDead(character, tts);
+                    }
                     isFullscreen = CheckFullscreenStatus();
                     if (isFullscreen && !positioned)
                     {
                         Console.WriteLine("Elden Ring is in fullscreen mode. Positioning overlay.");
-                        PositionOverlayRelativeToGameWindow(new RECT(),character,tts);
+                        PositionOverlayRelativeToGameWindow(new RECT(), character, tts);
                         positioned = true;
                     }
                     else if (!isFullscreen)
@@ -321,28 +333,66 @@ namespace EldenRingOverlay
                         //Console.WriteLine("Elden Ring is not in fullscreen mode. Hiding overlay.");
                         positioned = false;
                     }
-                    if (isFullscreen && (DateTime.Now - lastEventTime).TotalSeconds >= intervalESeconds && speaking == false && character != -1)
+                    if (isFullscreen && (DateTime.Now - lastEventTime).TotalSeconds >= intervalESeconds && speaking == false && character != -1 && !isDead)
                     {
-                        speaking = true;
                         bool spoke = await GetEvent(character, tts);
                         if (spoke)
                         {
                             lastEventTime = DateTime.Now;
                         }
                     }
-                    else if (isFullscreen && intervalESeconds>0)
+                    else if (isFullscreen && intervalESeconds > 0 && !isDead)
                     {
-                        await reader.UpdateEvent();
+                        await reader.UpdateEvent(character);
                     }
                     if (isFullscreen)
                     {
-                        character = await CheckCharacterSwitch(character,tts);
+                        if(!speaking)
+                        {
+                            character = await CheckCharacterSwitch(character, tts);
+
+                        }
+                        Console.WriteLine($"Current character ID: {character}");
+                        Console.WriteLine($"Current speaking state: {speaking}");
+                        var flag = FlagChecker.GetFlag();
+                        switch (flag)
+                        {
+                            case "AAT":
+                                if (!speaking)
+                                {
+                                    Console.WriteLine("AAT event detected, speaking encouragement.");
+                                    await AskCompanion(character, tts, "AAT");
+                                }
+                                break;
+                            case "AFY":
+                                if (!speaking)
+                                {
+                                    Console.WriteLine("AFY event detected, speaking encouragement.");
+                                    await AskCompanion(character, tts, "AFY");
+                                }
+                                break;
+                            case "ABR":
+                                if (!speaking)
+                                {
+                                    Console.WriteLine("ABR event detected, speaking encouragement.");
+                                    await AskCompanion(character, tts, "ABR");
+                                }
+                                break;
+                            case "AFA":
+                                if (!speaking)
+                                {
+                                    Console.WriteLine("AFA event detected, speaking encouragement.");
+                                    await AskCompanion(character, tts, "AFA");
+                                }
+                                break;
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error in fullscreen check: {ex.Message}");
                 }
+                
             };
             fsTimer.Start();
 
@@ -369,9 +419,8 @@ namespace EldenRingOverlay
                         Console.WriteLine("Elden Ring is not in fullscreen mode. Skipping encouragement text.");
                         return;
                     }
-                    if (!speaking && character != -1)
+                    if (!speaking && character != -1 && !isDead)
                     {
-                        speaking = true;
                         await GetEncouragement(character, tts);
                         return;
                     }
@@ -380,6 +429,7 @@ namespace EldenRingOverlay
                 {
                     Console.WriteLine($"Error in fullscreen check: {ex.Message}");
                 }
+                
             };
             gtTimer.Start();
         }
@@ -423,8 +473,8 @@ namespace EldenRingOverlay
                 double physicalScreenWidth = SystemParameters.PrimaryScreenWidth * dpiFactorX;
                 double physicalScreenHeight = SystemParameters.PrimaryScreenHeight * dpiFactorY;
 
-                Console.WriteLine($"Checking fullscreen: Window size: {windowWidth} x {windowHeight}");
-                Console.WriteLine($"Physical screen size: {physicalScreenWidth} x {physicalScreenHeight}");
+                //Console.WriteLine($"Checking fullscreen: Window size: {windowWidth} x {windowHeight}");
+                //Console.WriteLine($"Physical screen size: {physicalScreenWidth} x {physicalScreenHeight}");
 
                 // Check if the game is in fullscreen mode
                 if (windowWidth == physicalScreenWidth && windowHeight == physicalScreenHeight)
@@ -463,74 +513,77 @@ namespace EldenRingOverlay
 
         private async Task<int> CheckCharacterSwitch(int character, EldenTTS tts)
         {
-            // Read character from settings.ini
-            string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
-            string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
-            // Read the output file created by Lua
-            string outputFile = Path.Combine(outputDir, "saveComp.txt");
-            if (File.Exists(outputFile))
+            speaking = true;
+            try
             {
-                character = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : character;
+                // Read character from settings.ini
+                string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+                string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
+                // Read the output file created by Lua
+                string outputFile = Path.Combine(outputDir, "saveComp.txt");
+                if (File.Exists(outputFile))
+                {
+                    character = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : character;
+                }
+                // If the character has changed, update the last known ID
+                if (lastCharacterId != character && character != -1)
+                {
+                    lastCharacterId = character;
+                    this.Topmost = false;
+                    this.Topmost = true;
+
+                    // Read voice from settings.ini
+                    int voice = 1; // default
+                    var iniLines = File.ReadAllLines("settings.ini");
+                    foreach (var line in iniLines)
+                    {
+                        if (line.Trim().StartsWith("Voice="))
+                        {
+                            var value = line.Split('=')[1].Trim();
+                            if (int.TryParse(value, out int result))
+                                voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                            break;
+                        }
+                    }
+
+                    var sentence = "Lets have a good journey, Tarnished!";
+
+                    await Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdateSubtitle(sentence);
+                    }));
+
+                    // Azure voice if set
+                    if (tts != null)
+                    {
+                        try { await tts.SynthesizeToFileAsync(sentence, "output.wav", "general", character); }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error generating voice: {ex.Message}");
+                        }
+                        var player = new SoundPlayer("output.wav");
+                        player.Play();
+                    }
+
+                    Random r = new Random();
+                    int fileNumber = r.Next(1, 6);
+                    string wavFilePath = $@"Audio\{character}_general_{fileNumber}.wav";
+                    // play random of 5 files when speaking
+
+                    if (File.Exists(wavFilePath) && voice == 1)
+                    {
+                        var player = new SoundPlayer(wavFilePath);
+                        player.Play();
+                    }
+
+                    await FadeTextBlock(AIEncouragement, fadeIn: true);
+                    await Task.Delay(duration * 1000);
+                    await FadeTextBlock(AIEncouragement, fadeIn: false);
+                }
             }
-            // If the character has changed, update the last known ID
-            if (lastCharacterId != character && character != -1)
+            finally
             {
-                lastCharacterId = character;
-                this.Topmost = false;
-                this.Topmost = true;
-
-                speaking = true;
-
-                // Read voice from settings.ini
-                int voice = 1; // default
-                var iniLines = File.ReadAllLines("settings.ini");
-                foreach (var line in iniLines)
-                {
-                    if (line.Trim().StartsWith("Voice="))
-                    {
-                        var value = line.Split('=')[1].Trim();
-                        if (int.TryParse(value, out int result))
-                            voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
-                        break;
-                    }
-                }
-
-                var sentence = "Lets have a good journey, Tarnished!";
-
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    UpdateSubtitle(sentence);
-                }));
-
-                // Azure voice if set
-                if (tts != null)
-                {
-                    try { await tts.SynthesizeToFileAsync(sentence, "output.wav", "general", character); }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error generating voice: {ex.Message}");
-                    }
-                    var player = new SoundPlayer("output.wav");
-                    player.Play();
-                }
-
-                Random r = new Random();
-                int fileNumber = r.Next(1, 6);
-                string wavFilePath = $@"Audio\{character}_general_{fileNumber}.wav";
-                // play random of 5 files when speaking
-                                        
-                if (File.Exists(wavFilePath) && voice == 1)
-                {
-                    var player = new SoundPlayer(wavFilePath);
-                    player.Play();
-                }
-
-                await FadeTextBlock(AIEncouragement, fadeIn: true);
-                await Task.Delay(duration * 1000);
-                await FadeTextBlock(AIEncouragement, fadeIn: false);
-                
                 speaking = false;
-                
             }
             return character;
         }
@@ -564,7 +617,7 @@ namespace EldenRingOverlay
         static string[] SplitIntoSentences(string text)
         {
             // define every character you want to treat as “end of sentence”:
-            var terminators = new HashSet<char> { '.', '!', '?', '\u3002'};
+            var terminators = new HashSet<char> { '.', '!', '?', '\u3002' };
 
             var list = new List<string>();
             var sb = new StringBuilder();
@@ -591,124 +644,215 @@ namespace EldenRingOverlay
 
         private async Task GetEncouragement(int c, EldenTTS tts)
         {
-            string text = await reader.GetEncouragement(c);
-
-            // Split on punctuation + *any* whitespace (including newline)
-            var sentences = SplitIntoSentences(text);
-
-            //this.Topmost = false;
-            //this.Topmost = true;
-            if (string.IsNullOrWhiteSpace(text))
+            speaking = true;
+            try
             {
-                AIEncouragement.Text = "I'm confused, forgive me...";
-                Console.WriteLine("Failed to read encouragement text.");
-            }
-            else
-            {
-                this.Topmost = false;
-                this.Topmost = true;
+                string text = await reader.GetEncouragement(c);
 
-                string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
-                string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
-                // Read the output file created by Lua
-                string outputFile = Path.Combine(outputDir, "saveComp.txt");
-                if (File.Exists(outputFile))
+                // Split on punctuation + *any* whitespace (including newline)
+                var sentences = SplitIntoSentences(text);
+
+                //this.Topmost = false;
+                //this.Topmost = true;
+                if (string.IsNullOrWhiteSpace(text))
                 {
-                    c = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : c;
+                    AIEncouragement.Text = "I'm confused, forgive me...";
+                    Console.WriteLine("Failed to read encouragement text.");
                 }
-
-                // Read voice from settings.ini
-                int voice = 1; // default
-                var iniLines = File.ReadAllLines("settings.ini");
-                foreach (var line in iniLines)
+                else
                 {
-                    if (line.Trim().StartsWith("Voice="))
-                    {
-                        var value = line.Split('=')[1].Trim();
-                        if (int.TryParse(value, out int result))
-                            voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
-                        break;
-                    }
-                }
+                    this.Topmost = false;
+                    this.Topmost = true;
 
-                int temp = -1;
-                bool playSpecial = true;
-                foreach (var raw in sentences)
-                {
-                    var sentence = raw.Trim();
-                    if (sentence == "") continue;
-
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    // Read voice from settings.ini
+                    int voice = 1; // default
+                    var iniLines = File.ReadAllLines("settings.ini");
+                    foreach (var line in iniLines)
                     {
-                        UpdateSubtitle(sentence);
-                    }));
-
-
-                    Random r = new Random();
-                    int fileNumber = r.Next(1, 6);
-                    string wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
-                    // play random of 5 files when speaking
-                    if (playSpecial)
-                    {
-                        playSpecial = false;
-                        wavFilePath = $@"Audio\{c}_general_{fileNumber}.wav";
-                    }
-                    else
-                    {
-                        while (temp == fileNumber)
+                        if (line.Trim().StartsWith("Voice="))
                         {
-                            fileNumber = r.Next(1, 6);
+                            var value = line.Split('=')[1].Trim();
+                            if (int.TryParse(value, out int result))
+                                voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                            break;
                         }
-                        wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
-                        temp = fileNumber;  
                     }
 
-                    // Azure voice if set
-                    if (tts != null)
+                    int temp = -1;
+                    bool playSpecial = true;
+                    foreach (var raw in sentences)
                     {
-                        await tts.SynthesizeToFileAsync(sentence, "output.wav", "general", c);
-                        var player = new SoundPlayer("output.wav");
-                        player.Play();
-                    }
+                        var sentence = raw.Trim();
+                        if (sentence == "") continue;
 
-                    if (File.Exists(wavFilePath) && voice == 1)
-                    {
-                        var player = new SoundPlayer(wavFilePath);
-                        player.Play();
-                    }
+                        await Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            UpdateSubtitle(sentence);
+                        }));
 
-                    await FadeTextBlock(AIEncouragement, fadeIn: true);
-                    await Task.Delay(duration*1000);
-                    await FadeTextBlock(AIEncouragement, fadeIn: false);
+
+                        Random r = new Random();
+                        int fileNumber = r.Next(1, 6);
+                        string wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
+                        // play random of 5 files when speaking
+                        if (playSpecial)
+                        {
+                            playSpecial = false;
+                            wavFilePath = $@"Audio\{c}_general_{fileNumber}.wav";
+                        }
+                        else
+                        {
+                            while (temp == fileNumber)
+                            {
+                                fileNumber = r.Next(1, 6);
+                            }
+                            wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
+                            temp = fileNumber;
+                        }
+
+                        // Azure voice if set
+                        if (tts != null)
+                        {
+                            await tts.SynthesizeToFileAsync(sentence, "output.wav", "general", c);
+                            var player = new SoundPlayer("output.wav");
+                            player.Play();
+                        }
+
+                        if (File.Exists(wavFilePath) && voice == 1)
+                        {
+                            var player = new SoundPlayer(wavFilePath);
+                            player.Play();
+                        }
+
+                        await FadeTextBlock(AIEncouragement, fadeIn: true);
+                        await Task.Delay(duration * 1000);
+                        await FadeTextBlock(AIEncouragement, fadeIn: false);
+                    }
                 }
+            }
+            finally
+            {
                 speaking = false;
             }
         }
 
         private async Task<bool> GetEvent(int c, EldenTTS tts)
         {
-            string[] text = await reader.GetEvent(c);
+            speaking = true;
+            try
+            {
+                string[] text = await reader.GetEvent(c);
 
-            // If we only got one element back, there was no "real" event
-            if (text.Length < 2 || text[0] == "No changes detected.")
+                // If we only got one element back, there was no "real" event
+                if (text.Length < 2 || text[0] == "No changes detected.")
+                {
+                    speaking = false;
+                    return false;
+                }
+
+                // Split on punctuation + *any* whitespace (including newline)
+                var sentences = SplitIntoSentences(text[0]);
+                var sentiment = text[1];
+
+                if (string.IsNullOrWhiteSpace(text[0]))
+                {
+                    AIEncouragement.Text = "I'm confused, forgive me...";
+                    Console.WriteLine("Failed to read event text.");
+                }
+                else
+                {
+                    this.Topmost = false;
+                    this.Topmost = true;
+
+                    // Read voice from settings.ini
+                    int voice = 1; // default
+                    var iniLines = File.ReadAllLines("settings.ini");
+                    foreach (var line in iniLines)
+                    {
+                        if (line.Trim().StartsWith("Voice="))
+                        {
+                            var value = line.Split('=')[1].Trim();
+                            if (int.TryParse(value, out int result))
+                                voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                            break;
+                        }
+                    }
+
+                    int temp = -1;
+                    var playSpecial = true;
+                    foreach (var raw in sentences)
+                    {
+                        var sentence = raw.Trim();
+                        if (sentence == "") continue;
+
+                        await Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            UpdateSubtitle(sentence);
+                        }));
+
+
+                        Random r = new Random();
+                        int fileNumber = r.Next(1, 6);
+                        string wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
+                        // play random of 5 files when speaking
+                        if (playSpecial)
+                        {
+                            playSpecial = false;
+                            wavFilePath = $@"Audio\{c}_{sentiment}_{fileNumber}.wav";
+                        }
+                        else
+                        {
+                            while (temp == fileNumber)
+                            {
+                                fileNumber = r.Next(1, 6);
+                            }
+                            wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
+                            temp = fileNumber;
+                        }
+
+                        // Azure voice if set
+                        if (tts != null)
+                        {
+                            try { await tts.SynthesizeToFileAsync(sentence, "output.wav", sentiment, c); }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Error generating voice: {ex.Message}");
+                                return false; // Return false if TTS fails
+                            }
+                            var player = new SoundPlayer("output.wav");
+                            player.Play();
+                        }
+
+                        if (File.Exists(wavFilePath) && voice == 1)
+                        {
+                            var player = new SoundPlayer(wavFilePath);
+                            player.Play();
+                        }
+
+                        await FadeTextBlock(AIEncouragement, fadeIn: true);
+                        await Task.Delay(duration * 1000);
+                        await FadeTextBlock(AIEncouragement, fadeIn: false);
+                    }
+                }
+            }
+            finally
             {
                 speaking = false;
-                return false;
             }
+            return true;
+        }
 
-            // Split on punctuation + *any* whitespace (including newline)
-            var sentences = SplitIntoSentences(text[0]);
-            var sentiment = text[1];
+        private async Task Welcome(int c, EldenTTS tts)
+        {
+            speaking = true;
+            try
+            {
+                string text = "Welcome back, tarnished";
 
-            if (string.IsNullOrWhiteSpace(text[0]))
-            {
-                AIEncouragement.Text = "I'm confused, forgive me...";
-                Console.WriteLine("Failed to read event text.");
-            }
-            else
-            {
-                this.Topmost = false;
-                this.Topmost = true;
+                await Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    UpdateSubtitle(text);
+                }));
 
                 string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
                 string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
@@ -718,8 +862,8 @@ namespace EldenRingOverlay
                 {
                     c = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : c;
                 }
-
-                // Read voice from settings.ini
+                lastCharacterId = c; // Update last known ID
+                                     // Read voice from settings.ini
                 int voice = 1; // default
                 var iniLines = File.ReadAllLines("settings.ini");
                 foreach (var line in iniLines)
@@ -733,47 +877,105 @@ namespace EldenRingOverlay
                     }
                 }
 
-                int temp = -1;
-                var playSpecial = true;
-                foreach (var raw in sentences)
+                // Azure voice if set
+                if (tts != null)
                 {
-                    var sentence = raw.Trim();
-                    if (sentence == "") continue;
-
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    try { await tts.SynthesizeToFileAsync(text, "output.wav", "general", c); }
+                    catch (Exception ex)
                     {
-                        UpdateSubtitle(sentence);
-                    }));
+                        Console.WriteLine($"Error generating voice: {ex.Message}");
+                    }
+                    var player = new SoundPlayer("output.wav");
+                    player.Play();
+                }
 
+                if (File.Exists($@"Audio\{c}_welcome.wav") && voice == 1)
+                {
+                    Task.Delay(2000).Wait();
+                    var player = new SoundPlayer($@"Audio\{c}_welcome.wav");
+                    player.Play();
+                }
+                else
+                {
+                    Console.WriteLine($@"Audio\{c}_welcome.mp3 not found.");
+                }
+
+                await FadeTextBlock(AIEncouragement, fadeIn: true);
+                await Task.Delay(duration * 1000);
+                await FadeTextBlock(AIEncouragement, fadeIn: false);
+            }
+            finally
+            {
+                speaking = false;
+            }
+        }
+
+        bool died = false;
+        private async Task<bool> isCompanionDead(int c, EldenTTS tts)
+        {
+            speaking = true;
+            try
+            {
+                string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+                string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
+                // Read the output file created by Lua
+                string outputFile = Path.Combine(outputDir, "isDead.txt");
+                int dead = 0;
+                if (File.Exists(outputFile))
+                {
+                    dead = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : c;
+                }
+                if (dead == 0)
+                {
+                    speaking = false;
+                    died = false;
+                    return false;
+                }
+
+                if (died) return true; // Already handled death
+                died = true; // Mark as handled
+                string text = await reader.CompanionDied(c);
+
+                //this.Topmost = false;
+                //this.Topmost = true;
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    AIEncouragement.Text = "I'm confused, forgive me...";
+                    Console.WriteLine("Failed to read encouragement text.");
+                    return false;
+                }
+                else
+                {
+                    this.Topmost = false;
+                    this.Topmost = true;
+
+                    // Read voice from settings.ini
+                    int voice = 1; // default
+                    var iniLines = File.ReadAllLines("settings.ini");
+                    foreach (var line in iniLines)
+                    {
+                        if (line.Trim().StartsWith("Voice="))
+                        {
+                            var value = line.Split('=')[1].Trim();
+                            if (int.TryParse(value, out int result))
+                                voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                            break;
+                        }
+                    }
+
+                    await Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdateSubtitle(text);
+                    }));
 
                     Random r = new Random();
                     int fileNumber = r.Next(1, 6);
                     string wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
-                    // play random of 5 files when speaking
-                    if (playSpecial)
-                    {
-                        playSpecial = false;
-                        wavFilePath = $@"Audio\{c}_{sentiment}_{fileNumber}.wav";
-                    }
-                    else
-                    {
-                        while (temp == fileNumber)
-                        {
-                            fileNumber = r.Next(1, 6);
-                        }
-                        wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
-                        temp = fileNumber;
-                    }
 
                     // Azure voice if set
                     if (tts != null)
                     {
-                        try { await tts.SynthesizeToFileAsync(sentence, "output.wav", sentiment, c); }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error generating voice: {ex.Message}");
-                            return false; // Return false if TTS fails
-                        }
+                        await tts.SynthesizeToFileAsync(text, "output.wav", "general", c);
                         var player = new SoundPlayer("output.wav");
                         player.Play();
                     }
@@ -788,70 +990,110 @@ namespace EldenRingOverlay
                     await Task.Delay(duration * 1000);
                     await FadeTextBlock(AIEncouragement, fadeIn: false);
                 }
+            }
+            finally
+            {
                 speaking = false;
             }
             return true;
         }
+    
 
-        private async Task Welcome(int c, EldenTTS tts)
+        private async Task AskCompanion(int c, EldenTTS tts, string flag)
         {
-            string text = "Welcome back, tarnished";
+            speaking = true;
+            try
+            {
+                AIEncouragement.Text = ". . .";
 
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                UpdateSubtitle(text);
-            }));
+                await FadeTextBlock(AIEncouragement, fadeIn: true);
 
-            string userProfile = Environment.GetEnvironmentVariable("USERPROFILE");
-            string outputDir = Path.Combine(userProfile, "Documents", "EldenHelper");
-            // Read the output file created by Lua
-            string outputFile = Path.Combine(outputDir, "saveComp.txt");
-            if (File.Exists(outputFile))
-            {
-                c = File.ReadAllText(outputFile).Trim().Length > 0 ? int.Parse(File.ReadAllText(outputFile).Trim()) : c;
-            }
-            lastCharacterId = c; // Update last known ID
-            // Read voice from settings.ini
-            int voice = 1; // default
-            var iniLines = File.ReadAllLines("settings.ini");
-            foreach (var line in iniLines)
-            {
-                if (line.Trim().StartsWith("Voice="))
+                string text = await reader.AskCompanion(c, flag);
+
+                await FadeTextBlock(AIEncouragement, fadeIn: false);
+
+                // Split on punctuation + *any* whitespace (including newline)
+                var sentences = SplitIntoSentences(text);
+
+                //this.Topmost = false;
+                //this.Topmost = true;
+                if (string.IsNullOrWhiteSpace(text))
                 {
-                    var value = line.Split('=')[1].Trim();
-                    if (int.TryParse(value, out int result))
-                        voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
-                    break;
+                    AIEncouragement.Text = "I'm confused, forgive me...";
+                    Console.WriteLine("Failed to read encouragement text.");
+                }
+                else
+                {
+                    this.Topmost = false;
+                    this.Topmost = true;
+
+                    // Read voice from settings.ini
+                    int voice = 1; // default
+                    var iniLines = File.ReadAllLines("settings.ini");
+                    foreach (var line in iniLines)
+                    {
+                        if (line.Trim().StartsWith("Voice="))
+                        {
+                            var value = line.Split('=')[1].Trim();
+                            if (int.TryParse(value, out int result))
+                                voice = Math.Min(1, Math.Max(0, result)); // Clamp between 0–1
+                            break;
+                        }
+                    }
+
+                    int temp = -1;
+                    bool playSpecial = true;
+                    foreach (var raw in sentences)
+                    {
+                        var sentence = raw.Trim();
+                        if (sentence == "") continue;
+
+                        AIEncouragement.Text = sentence;
+
+                        Random r = new Random();
+                        int fileNumber = r.Next(1, 6);
+                        string wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
+                        // play random of 5 files when speaking
+                        if (playSpecial)
+                        {
+                            playSpecial = false;
+                            wavFilePath = $@"Audio\{c}_general_{fileNumber}.wav";
+                        }
+                        else
+                        {
+                            while (temp == fileNumber)
+                            {
+                                fileNumber = r.Next(1, 6);
+                            }
+                            wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
+                            temp = fileNumber;
+                        }
+
+                        // Azure voice if set
+                        if (tts != null)
+                        {
+                            await tts.SynthesizeToFileAsync(sentence, "output.wav", "general", c);
+                            var player = new SoundPlayer("output.wav");
+                            player.Play();
+                        }
+
+                        if (File.Exists(wavFilePath) && voice == 1)
+                        {
+                            var player = new SoundPlayer(wavFilePath);
+                            player.Play();
+                        }
+
+                        await FadeTextBlock(AIEncouragement, fadeIn: true);
+                        await Task.Delay(duration * 1000);
+                        await FadeTextBlock(AIEncouragement, fadeIn: false);
+                    }
                 }
             }
-
-            // Azure voice if set
-            if (tts != null)
+            finally
             {
-                try { await tts.SynthesizeToFileAsync(text, "output.wav","general", c); }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error generating voice: {ex.Message}");
-                }
-                var player = new SoundPlayer("output.wav");
-                player.Play();
+                // Ensure we reset speaking state even if an error occurs
+                speaking = false;
             }
-
-            if (File.Exists($@"Audio\{c}_welcome.wav") && voice == 1)
-            {
-                Task.Delay(2000).Wait();
-                var player = new SoundPlayer($@"Audio\{c}_welcome.wav");
-                player.Play();
-            }
-            else
-            {
-                Console.WriteLine($@"Audio\{c}_welcome.mp3 not found.");
-            }
-
-            await FadeTextBlock(AIEncouragement, fadeIn: true);
-            await Task.Delay(duration * 1000);
-            await FadeTextBlock(AIEncouragement, fadeIn: false);
-
         }
 
         async Task FadeTextBlock(TextBlock tb, bool fadeIn, double duration = 500)

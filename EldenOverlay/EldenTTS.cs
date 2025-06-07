@@ -137,6 +137,19 @@ public class EldenTTS
             };
         }
 
+        // Melina
+        if (voice == "en-US-AvaNeural")
+        {
+            return sentiment switch
+            {
+                "general" => "default",
+                "impressed" => "default",
+                "worried" => "angry",
+                "death" => "angry",
+                _ => "default"
+            };
+        }
+
         // Fallback: plain neutral if somehow missed
         return "default";
     }
@@ -154,6 +167,7 @@ public class EldenTTS
             3 => "en-US-PhoebeMultilingualNeural",   // Millicent 
             4 => "en-GB-RyanNeural",                // Messmer
             5 => "en-US-SerenaMultilingualNeural",     // Sellen
+            6 => "en-US-AvaNeural",                     // Malenia
             _ => "en-US-NancyMultilingualNeural"
         };
     }
