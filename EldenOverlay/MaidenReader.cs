@@ -1294,7 +1294,7 @@ namespace EldenEncouragement
                     string? tierChangeMessage = (newTier > prevTier) switch
                     {
                         // Upward movement (relationship improved)
-                        true => newTier switch
+                        true => "Your bond to the Tarnished grows. Tell them this and the nature of your current bond. " + newTier switch
                         {
                             10 => "Your bond has reached its ultimate strength. Tell the Tarnished you have grown to love them deeply.",
                             9 => "Your loyalty is nearly unbreakable. Express unwavering support, care, and commitment.",
@@ -1321,7 +1321,7 @@ namespace EldenEncouragement
                         },
 
                         // Downward movement (relationship worsened)
-                        false => newTier switch
+                        false => "Your bond to the Tarnished falls. Tell them this and the nature of your current bond. " + newTier switch
                         {
                             10 => "Your bond was strong but took a hit. Admit hurt but vow to remain loyal.",
                             9 => "Your loyalty weakens slightly. Express concern but stay committed.",
@@ -1348,7 +1348,7 @@ namespace EldenEncouragement
                         }
                     };
 
-                    return tierChangeMessage ?? "No relationship tier change detected.";
+                    return $"The nature of your bond to the Tarnished has shifted. {tierChangeMessage}" ?? "No relationship tier change detected.";
                 }
 
                 return "No relationship tier change detected.";

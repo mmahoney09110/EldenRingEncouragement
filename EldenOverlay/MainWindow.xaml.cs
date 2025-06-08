@@ -91,7 +91,7 @@ namespace EldenRingOverlay
                 typeof(Timeline),
                 new FrameworkPropertyMetadata { DefaultValue = 30 }
             );
-            //AllocConsole(); // Shows console window
+            AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
             GetScreenSize();
