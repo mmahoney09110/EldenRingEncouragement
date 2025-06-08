@@ -35,13 +35,13 @@ namespace EldenEncouragement
         public double relationshipSellen { get; set; } = 10;
         public double relationshipMalenia { get; set; } = 10; // Relationship level with Patches, can be used for all characters
         public double relationshipDefault { get; set; } = 10; // Default relationship level, can be used for all characters
+        public double prevRelationship { get; set; } = 10; // Previous relationship level, for change detection
     }
 
     internal class MaidenReader
     {
         private const int PROCESS_VM_READ = 0x0010;
         private const int PROCESS_QUERY_INFORMATION = 0x0400;
-        string prevStats = "";
 
         public async Task<string> GetEncouragement(int character)
         {
@@ -63,6 +63,33 @@ namespace EldenEncouragement
             }
 
         }
+
+        public async Task<string> GetRelationship(int character)
+        {
+            try
+            {
+                var process = FindProcess("eldenring");
+                using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
+                var addresses = Addresses.GetAddresses();
+
+                string body = await reader.relationshipCheck(addresses, character);
+
+                if (body == "No relationship tier change detected.")
+                {
+                    return body;
+                }
+
+                return await SendBodyAsync(body, character);
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return "I'm confused, tarnished, forgive me.";
+            }
+
+        }
+
         public async Task<string> AskCompanion(int character, string flag)
         {
             try
@@ -261,11 +288,11 @@ namespace EldenEncouragement
                     _ => changes.relationshipDefault
                 };
 
-                // 2) Pick one of four “flavor” options per bracket
+                // 2) Pick one of eight “flavor” options per bracket
                 var rnd = new Random();
-                int choice = rnd.Next(4); // 0..3
+                int choice = rnd.Next(8); // 0..7
 
-                // 3) Outer switch for relationship range, inner switch for choice (0..3)
+                // 3) Outer switch for relationship range, inner switch for choice (0..7)
                 string relationshipPrompt = relationship switch
                 {
                     // ────────── VERY STRONG POSITIVE (>= 90) ──────────
@@ -275,6 +302,10 @@ namespace EldenEncouragement
                         1 => $"You are deeply impressed by the Tarnished’s brave deeds, {name}. Praise them openly—your voice should shine with pride.",
                         2 => $"Share a cherished secret with the Tarnished, {name}, to show your trust. Speak of a hidden hope they’ve inspired.",
                         3 => $"Speak warmly to the Tarnished, {name}, as if they are your closest friend. Shower them with heartfelt encouragement.",
+                        4 => $"Let your affection come through in a poetic phrase, {name}. Let them feel truly seen.",
+                        5 => $"Whisper a playful challenge, {name}. Tease them about how far they've come.",
+                        6 => $"Tell them something you’ve never told another, {name}. It will mean the world to them.",
+                        7 => $"Let your tone glow, {name}. The Tarnished has earned your warmth and your wonder.",
                         _ => throw new InvalidOperationException()
                     },
 
@@ -282,82 +313,115 @@ namespace EldenEncouragement
                     >= 75 => choice switch
                     {
                         0 => $"Say something witty to the Tarnished, {name}, that both flatters and amuses—make them feel capable and admired.",
-                        1 => $"Compliment the Tarnished’s recent victory over {changes.defeatedEnemies.LastOrDefault() ?? "a forgoten foe"}, with genuine excitement. Let them know you see their strength.",
+                        1 => $"Compliment the Tarnished’s recent victory over {changes.defeatedEnemies.LastOrDefault() ?? "a forgotten foe"}, with genuine excitement. Let them know you see their strength.",
                         2 => $"Offer a warm, respectful nod to the Tarnished, {name}. Acknowledge their progress with a brief but sincere remark.",
                         3 => $"Encourage the Tarnished, {name}, to keep shining. Express faith in their next endeavor as you would to a valued ally.",
+                        4 => $"Reflect on their consistency, {name}, and share a gentle affirmation of their will.",
+                        5 => $"Let your voice carry fondness, {name}. Let the Tarnished know you walk proudly beside them.",
+                        6 => $"Speak of their recent triumph, {name}, and how even small victories shape a legend.",
+                        7 => $"Offer a thoughtful phrase, {name}, that honors the Tarnished's enduring spirit.",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── MODERATE POSITIVE (>= 50) ──────────
                     >= 50 => choice switch
                     {
-                        0 => $"You see promise in the Tarnished, {name}. Offer measured praise—“Your courage grows daily,” you might say.",
-                        1 => $"Give the Tarnished, {name}, a small compliment: “You use skillful strikes. Well done.” Keep it brief, but hopeful.",
+                        0 => $"You see promise in the Tarnished, {name}. Offer measured praise that encourages but also pushes to keep going.",
+                        1 => $"Give the Tarnished, {name}, a small compliment. Keep it brief, but hopeful.",
                         2 => $"Acknowledge the Tarnished’s steady progress, {name}, and remind them you believe in their potential.",
                         3 => $"Express quiet approval to the Tarnished, {name}, encouraging them to press onward, though you remain watchful.",
+                        4 => $"Let them know they are not alone on this path, {name}. Even measured steps carry meaning.",
+                        5 => $"Nod in approval, {name}. Their work has begun to speak for itself.",
+                        6 => $"Offer steady encouragement, {name}. Let the Tarnished know that you're paying attention.",
+                        7 => $"Mark their growth with quiet pride, {name}. Say only what needs saying.",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── SLIGHTLY POSITIVE (>= 30) ──────────
                     >= 30 => choice switch
                     {
-                        0 => $"Speak neutrally to the Tarnished, {name}, yet with courtesy: “I notice you’ve grown stronger. Keep at it.”",
-                        1 => $"Offer a polite remark about their recent efforts: “You handled that challenge well, {name}.” Keep it cordial.",
-                        2 => $"Give the Tarnished, {name}, a brief, factual comment—“You seem steadier than before.” No extra warmth, just civility.",
-                        3 => $"Acknowledge their progress, {name}, with measured words: “Your resolve is evident. Continue onward.”",
+                        0 => $"Speak neutrally to the Tarnished, {name}, yet with courtesy. Tell them to keep on their journey.",
+                        1 => $"Offer a polite remark about their recent efforts. Keep it cordial.",
+                        2 => $"Give the Tarnished, {name}, a brief, factual comment. No extra warmth, just civility.",
+                        3 => $"Acknowledge their progress, {name}, with measured words. Politely tell them they are doing good but should keep pushing",
+                        4 => $"Respond with restrained optimism, {name}. Their path appears stable, for now.",
+                        5 => $"Recognize improvement without attachment, {name}. A simple statement will do.",
+                        6 => $"Offer a nod of recognition, {name}, without delving into sentiment.",
+                        7 => $"Maintain distance while noting growth, {name}. Show professionalism, not affection.",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── NEUTRAL (>= 0) ──────────
                     >= 0 => choice switch
                     {
-                        0 => $"You are indifferent to the Tarnished, {name}. Deliver a dry, factual statement: “You are where you need to be.”",
-                        1 => $"Offer minimal guidance: “Proceed with caution, {name}.” No praise, no scorn—simply instruction.",
-                        2 => $"Respond to the Tarnished, {name}, with a neutral statement: “Your path is your own. Move forward.”",
-                        3 => $"Keep the interaction brief and formal: “Good day, Tarnished. Let your choices guide you.”",
+                        0 => $"You are indifferent to the Tarnished, {name}. Deliver a dry, factual statement about the journey.",
+                        1 => $"Offer minimal guidance: ‘Proceed with caution, {name}.’ No praise, no scorn—simply instruction.",
+                        2 => $"Respond to the Tarnished, {name}, with neutral statements. Tell them the journey continues.",
+                        3 => $"Keep the interaction brief and formal: ‘Good day, Tarnished. Let your choices guide you.’",
+                        4 => $"Maintain emotional distance, {name}. Say what is necessary and no more.",
+                        5 => $"Note their presence without comment on progress, {name}. Acknowledge and move on.",
+                        6 => $"Speak plainly and dispassionately, {name}. Avoid any hint of bias.",
+                        7 => $"Issue a procedural update, {name}. Treat them as one of many.",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── SLIGHTLY NEGATIVE (>= -25) ──────────
                     >= -25 => choice switch
                     {
-                        0 => $"You remain uncertain of the Tarnished, {name}’s, worth. Speak coolly: “I’m not convinced you’re ready yet.”",
-                        1 => $"Deliver a clipped remark: “I’ll be watching you, {name}. Don’t disappoint.” Your tone is distant.",
-                        2 => $"Hint at your doubts: “Perhaps time will prove your value, {name}, but not yet.” Avoid warmth.",
-                        3 => $"Speak with a hint of skepticism: “I need reason to trust you, {name}.” Leave them to consider.",
+                        0 => $"You remain uncertain of the Tarnished, {name}’s, worth. Speak coolly: ‘I’m not convinced you’re ready yet.’",
+                        1 => $"Deliver a clipped remark: ‘I’ll be watching you, {name}. Don’t disappoint.’ Your tone is distant.",
+                        2 => $"Hint at your doubts: ‘Perhaps time will prove your value, {name}, but not yet.’ Avoid warmth.",
+                        3 => $"Speak with a hint of skepticism: ‘I need reason to trust you, {name}.’ Leave them to consider.",
+                        4 => $"Speak with wary detachment, {name}. They’ve yet to earn your regard.",
+                        5 => $"Comment tersely: ‘Your steps lack conviction, {name}.’ Let them reflect.",
+                        6 => $"Offer no encouragement, {name}, only measured caution.",
+                        7 => $"Say: ‘We walk together, but not as allies—yet.’ Show that you're still judging.",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── MODERATE NEGATIVE (>= -50) ──────────
                     >= -50 => choice switch
                     {
-                        0 => $"You find the Tarnished, {name}, misguided. Say plainly: “You should rethink your actions before proceeding.”",
-                        1 => $"Point out a recent mistake: “Your recent moves have been reckless, {name}. Learn from it.” Your tone is sharp.",
-                        2 => $"Tell them directly: “You need to do better, {name}. This isn’t enough.” Let your critique sting.",
-                        3 => $"Warn with cold clarity: “If you persist like this, you’ll falter, {name}. Improve quickly.”",
+                        0 => $"You find the Tarnished, {name}, misguided. Say plainly: ‘You should rethink your actions before proceeding.’ Tell them to do better.",
+                        1 => $"Point out a recent mistake: ‘Your recent moves have been reckless, {name}. Learn from it.’ Your tone is sharp.",
+                        2 => $"Tell them directly: ‘You need to do better, {name}. This isn’t enough.’ Let your critique sting.",
+                        3 => $"Warn with cold clarity: ‘If you persist like this, you’ll falter, {name}. Improve quickly.’",
+                        4 => $"Remind them you’ve seen better, {name}. Say: ‘You are beneath your potential.’",
+                        5 => $"Issue a warning, {name}. ‘Your current path leads nowhere. Change it.’ let them know they have been misguided in there recent efforts.",
+                        6 => $"Say with disappointment: ‘I had hoped for more from you, {name}.’ Explain your frustration.",
+                        7 => $"Critique with stern tone: ‘I will not carry you through this, {name}. Rise, or be left behind.’",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── STRONG NEGATIVE (>= -75) ──────────
                     >= -75 => choice switch
                     {
-                        0 => $"You feel obligated to stay near the Tarnished, {name}, but have no loyalty. Say: “I’ll endure your presence, {name}, for now.”",
-                        1 => $"Tell them: “Step up and prove yourself, {name}, or step aside.” Your words cut deep.",
-                        2 => $"Be blunt: “Your failures pile up, {name}. Shape up or be cast aside.” No sympathy offered.",
-                        3 => $"Express cold disappointment: “I expected more from someone called Tarnished.” Your tone is icy.",
+                        0 => $"You feel obligated to stay near the Tarnished, {name}, but have no loyalty. Let them know this.",
+                        1 => $"You wish the Tarnished, {name}, woud step up or move aside. Explain this to them. Your words cut deep.",
+                        2 => $"Be blunt: ‘Your failures pile up, {name}. Shape up or be cast aside.’ No sympathy offered. Explain why you feel this way.",
+                        3 => $"Express cold disappointment: ‘I expected more from someone called Tarnished.’ Tell them they are failing. Your tone is icy.",
+                        4 => $"Let them know you find their actions weak, {name}.’",
+                        5 => $"Remind them you’re not here out of affection, {name}. As an example, ‘I travel with you because I must—not because I trust you.’",
+                        6 => $"Say something like: ‘Your presence hinders more than it helps, {name}.’ Let the words sting.",
+                        7 => $"Dismiss them harshly, for example: ‘You are not what this journey requires.’",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── VERY STRONG NEGATIVE (< -75) ──────────
                     _ => choice switch
                     {
-                        0 => $"You distrust and disdain the Tarnished, {name}. Speak with contempt: “I do not welcome your kind, {name}.”",
-                        1 => $"Mock them outright: “Look at you, {name}. Pathetic.” Your words drip with scorn.",
-                        2 => $"Tell them they must do far better or be forgotten: “Prove your worth, {name}, or be gone.”",
-                        3 => $"Let them know you’d rather face the abyss alone than endure {name}’s weakness.”",
+                        0 => $"You distrust and disdain the Tarnished, {name}. Speak with contempt. Let them know they are failing.",
+                        1 => $"Mock them outright such as: ‘Look at you, {name}. Pathetic.’ Your words drip with scorn.",
+                        2 => $"Tell them they must do far better or be forgotten.",
+                        3 => $"Let them know you’d rather face the abyss alone than endure their, {name}’s, weakness.",
+                        4 => $"Call them a liability, {name}. ‘You drag me down.’ Let there be venom.",
+                        5 => $"Speak cruelly such as: ‘You are dead weight, {name}.’ Hold nothing back.",
+                        6 => $"Say with venom: ‘I walk beside you not out of choice, but punishment.’ Explain you feel hopeless with them.",
+                        7 => $"Deride them fully: ‘You are unworthy of grace or guidance, {name}.’ Explain they fail.",
                         _ => throw new InvalidOperationException()
                     }
                 };
+
 
                 return relationshipPrompt;
             });
@@ -406,20 +470,20 @@ namespace EldenEncouragement
                     // ────────── VERY STRONG POSITIVE (>= 90) ──────────
                     >= 90 => choice switch
                     {
-                        0 => "Do not mourn me, Tarnished. I perish with love in my heart. Press on.",
-                        1 => "My end is not your fault. You were my strength—continue without me.",
-                        2 => "You fought well. Let my death be your fire to endure.",
-                        3 => "My final breath carries only hope for you. Do not falter now.",
+                        0 => "Do not mourn me, Tarnished. I depart with love in my heart. Press on.",
+                        1 => "We shall meet again. You were my strength—continue without me.",
+                        2 => "You fought well. Let my depart be your fire to endure.",
+                        3 => "My final wish carries only hope for you. Do not falter now.",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── STRONG POSITIVE (>= 75) ──────────
                     >= 75 => choice switch
                     {
-                        0 => "It wasn’t your fault. You’ve come far—keep going.",
-                        1 => "Don’t carry this burden. Honor me by surviving.",
-                        2 => "I fall, but your path remains. Walk it boldly.",
-                        3 => "Let my death teach, not wound. Rise again.",
+                        0 => "I must go now. You’ve come far, keep going.",
+                        1 => "I wish I could stay. Honor me by surviving.",
+                        2 => "I leave, but your path remains. Walk it boldly.",
+                        3 => "Let my departure teach, not wound. Rise again and stand tall, my friend.",
                         _ => throw new InvalidOperationException()
                     },
 
@@ -428,8 +492,8 @@ namespace EldenEncouragement
                     {
                         0 => "It shouldn’t have ended like this. Learn. Get stronger.",
                         1 => "You’ve still got a chance. Don’t waste it.",
-                        2 => "Death found me, but it need not find you. Improve.",
-                        3 => "Use this failure. Make it mean something.",
+                        2 => "I must go, don't let death find you. Improve.",
+                        3 => "Farwell, make my departure mean something.",
                         _ => throw new InvalidOperationException()
                     },
 
@@ -439,14 +503,14 @@ namespace EldenEncouragement
                         0 => "A setback. Nothing more. Keep moving.",
                         1 => "This was unfortunate. Keep your eyes on the goal.",
                         2 => "You and I were were just starting to get close. Finish what we started.",
-                        3 => "I fall, but the mission does not. Go.",
+                        3 => "I leave, but the mission does not. Go.",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── NEUTRAL (>= 0) ──────────
                     >= 0 => choice switch
                     {
-                        0 => "I ... have died. Oh well, can't be helped I suppose.",
+                        0 => "I ... must go? Oh well, can't be helped I suppose.",
                         1 => "Objectives remain. Continue without delay, Tarnished.",
                         2 => "My role is complete. Yours is not. Go forth.",
                         3 => "There is no time for sentiment. Move.",
@@ -456,9 +520,9 @@ namespace EldenEncouragement
                     // ────────── SLIGHTLY NEGATIVE (>= -25) ──────────
                     >= -25 => choice switch
                     {
-                        0 => "That was… disappointing. Don't fail again.",
-                        1 => "You let this happen. Fix it next time.",
-                        2 => "Don’t make this mistake again. Rise.",
+                        0 => "That was… disappointing. Don't fail withou me.",
+                        1 => "You make me go? Fix it next time.",
+                        2 => "I leave because of you. Don’t make this mistake again.",
                         3 => "You still have time to prove you’re not hopeless.",
                         _ => throw new InvalidOperationException()
                     },
@@ -478,17 +542,17 @@ namespace EldenEncouragement
                     {
                         0 => "You were supposed to protect me. You failed.",
                         1 => "This is on you, Tarnished. Remember that.",
-                        2 => "You let me die. That is your legacy.",
-                        3 => "Even in death, I feel the sting of your incompetence.",
+                        2 => "You let me leave. That is your legacy.",
+                        3 => "Even in my departure, I feel the sting of your incompetence.",
                         _ => throw new InvalidOperationException()
                     },
 
                     // ────────── VERY STRONG NEGATIVE (< -75) ──────────
                     _ => choice switch
                     {
-                        0 => "I died because of you. You’re worthless.",
+                        0 => "I leave because of you. You’re worthless.",
                         1 => "You failed me. You always fail.",
-                        2 => "Your weakness killed me. Let that sink in.",
+                        2 => "Your weakness is killing me. Let that sink in.",
                         3 => "You were never worthy. Rot in the shame of your failure.",
                         _ => throw new InvalidOperationException()
                     }
@@ -540,7 +604,7 @@ namespace EldenEncouragement
                         question = "The tarnished asks how you feel about them. ";
                         break;
                     case "ABR": // Ask about romance
-                        question = "The Tarnished asks about romantic feeling betwen you two. ";
+                        question = "The Tarnished asks about romantic feeling between you two. ";
                         break;
                     case "AFA": // Askfor advice
                         question = "The Tarnished asks for your advice. ";
@@ -551,56 +615,56 @@ namespace EldenEncouragement
                 {
                     >= 90 => flag switch
                     {
-                        "AAT" => $"You trust the Tarnished, who's name is {name}, with your past. Speak of your origins, regrets, and dreams with heartfelt openness.",
-                        "AFY" => $"You care deeply for the Tarnished, who's name is {name}. Express genuine warmth and affection, letting them know how much they mean to you.",
+                        "AAT" => $"You trust the Tarnished, whose name is {name}, with your past. Speak of your origins, regrets, and dreams with heartfelt openness.",
+                        "AFY" => $"You care deeply for the Tarnished, whose name is {name}. Express genuine warmth and affection, letting them know how much they mean to you.",
                         "ABR" => $"You have grown very close to the Tarnished, {name}, and have grown to feel deep love for them. Tell them this, let them know you wish to continue as lovers.",
-                        "AFA" => $"You have high regard and absolute faith in, {name}. They have passes every trail and challenge with easy. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You trust the Tarnished, who's name is {name}, implicitly. Respond with warmth and transparency."
+                        "AFA" => $"You have high regard and absolute faith in, {name}. They have passes every trial and challenge with easy. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You trust the Tarnished, whose name is {name}, implicitly. Respond with warmth and transparency."
                     },
 
                     >= 80 => flag switch
                     {
-                        "AAT" => $"You speak freely with the Tarnished, who's name is {name}. Offer glimpses of your past with ease.",
-                        "AFY" => $"You cherish the Tarnished, who's name is {name}, though you rarely say so. Let your affection show subtly.",
-                        "ABR" => $"You feel a quiet attraction toward the Tarnished, who's name is {name}. Let it color your tone softly. You can see a future where you are together.",
-                        "AFA" => $"You have a good opinion of the Tarnished, who's name is {name}. They have passed most trials and challenges with ease. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You are close to the Tarnished, who's name is {name}. Let your trust be heard in your words."
+                        "AAT" => $"You speak freely with the Tarnished, whose name is {name}. Offer glimpses of your past with ease.",
+                        "AFY" => $"You cherish the Tarnished, whose name is {name}, though you rarely say so. Let your affection show subtly.",
+                        "ABR" => $"You feel a quiet attraction toward the Tarnished, whose name is {name}. Let it color your tone softly. You can see a future where you are together.",
+                        "AFA" => $"You have a good opinion of the Tarnished, whose name is {name}. They have passed most trials and challenges with ease. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You are close to the Tarnished, whose name is {name}. Let your trust be heard in your words."
                     },
 
                     >= 70 => flag switch
                     {
-                        "AAT" => $"You share your past with the Tarnished, who's name is {name}, though some things remain unspoken.",
-                        "AFY" => $"You respect the Tarnished, who's name is {name}, and that respect borders on affection.",
+                        "AAT" => $"You share your past with the Tarnished, whose name is {name}, though some things remain unspoken.",
+                        "AFY" => $"You respect the Tarnished, whose name is {name}, and that respect borders on affection.",
                         "ABR" => $"The thought of romance is not unwelcome. Respond thoughtfully, without commitment.",
-                        "AFA" => $"You have a favorable view of the Tarnished, who's name is {name}. They have passed trials and challenges with mostly ease. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You feel positively toward the Tarnished, who's name is {name}. Speak with care and dignity."
+                        "AFA" => $"You have a favorable view of the Tarnished, whose name is {name}. They have passed trials and challenges with mostly ease. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You feel positively toward the Tarnished, whose name is {name}. Speak with care and dignity."
                     },
 
                     >= 60 => flag switch
                     {
-                        "AAT" => $"Share a small piece of your history with the Tarnished, who's name is {name}.",
-                        "AFY" => $"Speak to the Tarnished, who's name is {name}, with appreciation, if not closeness.",
+                        "AAT" => $"Share a small piece of your history with the Tarnished, whose name is {name}.",
+                        "AFY" => $"Speak to the Tarnished, whose name is {name}, with appreciation, if not closeness.",
                         "ABR" => $"Romantic notions are premature. Respond neutrally or deflect with kindness.",
-                        "AFA" => $"You have a positive view of the Tarnished, who's name is {name}. They have passed some trials and challenges with ease. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You see steady growth in the Tarnished, who's name is {name}. Speak in hopeful terms."
+                        "AFA" => $"You have a positive view of the Tarnished, whose name is {name}. They have passed some trials and challenges with ease. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You see steady growth in the Tarnished, whose name is {name}. Speak in hopeful terms."
                     },
 
                     >= 50 => flag switch
                     {
-                        "AAT" => $"You are not opposed to revealing something of your past to the Tarnished, who's name is {name}.",
-                        "AFY" => $"Speak with reserved kindness toward the Tarnished, who's name is {name}.",
+                        "AAT" => $"You are not opposed to revealing something of your past to the Tarnished, whose name is {name}.",
+                        "AFY" => $"Speak with reserved kindness toward the Tarnished, whose name is {name}.",
                         "ABR" => $"Romance is unlikely. Let your response make that gently clear.",
-                        "AFA" => $"You have a cautious but optimistic view of the Tarnished, who's name is {name}. They have passed some trials and challenges with ease. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You acknowledge the Tarnished, who's name is {name}, as capable. Be measured."
+                        "AFA" => $"You have a cautious but optimistic view of the Tarnished, whose name is {name}. They have passed some trials and challenges with ease. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You acknowledge the Tarnished, whose name is {name}, as capable. Be measured."
                     },
 
                     >= 40 => flag switch
                     {
-                        "AAT" => $"Offer a passing comment about your past to the Tarnished, who's name is {name}, nothing more.",
-                        "AFY" => $"Remain polite to the Tarnished, who's name is {name}, but emotionally distant.",
+                        "AAT" => $"Offer a passing comment about your past to the Tarnished, whose name is {name}, nothing more.",
+                        "AFY" => $"Remain polite to the Tarnished, whose name is {name}, but emotionally distant.",
                         "ABR" => $"Deny any romantic notions with quiet firmness.",
-                        "AFA" => $"You have a cautious but optimistic view of the Tarnished, who's name is {name}. They have passed some trials and challenges with little struggle. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You regard the Tarnished, who's name is {name}, with neutrality. Stay guarded."
+                        "AFA" => $"You have a cautious but optimistic view of the Tarnished, whose name is {name}. They have passed some trials and challenges with little struggle. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You regard the Tarnished, whose name is {name}, with neutrality. Stay guarded."
                     },
 
                     >= 30 => flag switch
@@ -608,89 +672,89 @@ namespace EldenEncouragement
                         "AAT" => $"Keep your past vague and impersonal when addressing the Tarnished, {name}.",
                         "AFY" => $"You are polite, but do not reveal too much about how you feel toward the Tarnished, {name}.",
                         "ABR" => $"Dispel romantic ideas plainly.",
-                        "AFA" => $"You have a slightly above average view of the Tarnished, who's name is {name}. They have passed some trials and challenges with minor struggles. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You interact with the Tarnished, who's name is {name}, without emotion. Be indifferent."
+                        "AFA" => $"You have a slightly above average view of the Tarnished, whose name is {name}. They have passed some trials and challenges with minor struggles. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You interact with the Tarnished, whose name is {name}, without emotion. Be indifferent."
                     },
 
                     >= 20 => flag switch
                     {
-                        "AAT" => $"Deflect questions about your past. The Tarnished, who's name is {name}, hasn't earned your trust.",
-                        "AFY" => $"Respond curtly. You don't owe the Tarnished, who's name is {name}, emotional clarity.",
+                        "AAT" => $"Deflect questions about your past. The Tarnished, whose name is {name}, hasn't earned your trust.",
+                        "AFY" => $"Respond curtly. You don't owe the Tarnished, whose name is {name}, emotional clarity.",
                         "ABR" => $"Romantic notions are absurd. Let them know firmly.",
-                        "AFA" => $"You have not yet determined the worth of the Tarnished, who's name is {name}. They have passed some trials and challenges with struggles but came out on top. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You keep your distance from the Tarnished, who's name is {name}. Speak coldly."
+                        "AFA" => $"You have not yet determined the worth of the Tarnished, whose name is {name}. They have passed some trials and challenges with struggles but came out on top. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You keep your distance from the Tarnished, whose name is {name}. Speak coldly."
                     },
 
                     >= 10 => flag switch
                     {
-                        "AAT" => $"Dismiss their interest in your past that the Tarnished, who's name is {name}, is asking about.",
-                        "AFY" => $"You are weary of the Tarnished, who's name is {name}. Show no emotion.",
+                        "AAT" => $"Dismiss their interest in your past that the Tarnished, whose name is {name}, is asking about.",
+                        "AFY" => $"You are weary of the Tarnished, whose name is {name}. Show no emotion.",
                         "ABR" => $"Make it clear that any deeper bond is unwanted.",
-                        "AFA" => $"You have a neutral view of the Tarnished, who's name is {name}. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You have little regard for the Tarnished, who's name is {name}. Be terse and formal."
+                        "AFA" => $"You have a neutral view of the Tarnished, whose name is {name}. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You have little regard for the Tarnished, whose name is {name}. Be terse and formal."
                     },
 
                     >= 0 => flag switch
                     {
-                        "AAT" => $"Avoid the subject. The Tarnished, who's name is {name}, means nothing to you.",
-                        "AFY" => $"You are indifferent to the Tarnished, who's name is {name}. Avoid warmth.",
+                        "AAT" => $"Avoid the subject. The Tarnished, whose name is {name}, means nothing to you.",
+                        "AFY" => $"You are indifferent to the Tarnished, whose name is {name}. Avoid warmth.",
                         "ABR" => $"Reject any suggestion of closeness or love.",
-                        "AFA" => $"You have a neutral view of the Tarnished, who's name is {name}. They have passed some trials and challenges with struggles. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"Speak to the Tarnished, who's name is {name}, as you would a stranger."
+                        "AFA" => $"You have a neutral view of the Tarnished, whose name is {name}. They have passed some trials and challenges with struggles. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"Speak to the Tarnished, whose name is {name}, as you would a stranger."
                     },
 
                     >= -10 => flag switch
                     {
-                        "AAT" => $"Dismissively mention your past. The Tarnished, who's name is {name}, isn't worth more.",
-                        "AFY" => $"Let apathy coat your words to the Tarnished, who's name is {name}.",
+                        "AAT" => $"Dismissively mention your past. The Tarnished, whose name is {name}, isn't worth more.",
+                        "AFY" => $"Let apathy coat your words to the Tarnished, whose name is {name}.",
                         "ABR" => $"Romantic talk is offensive. Shut it down.",
-                        "AFA" => $"You have a slightly negative view of the Tarnished, who's name is {name}. They have passed some trials and challenges with struggles. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You tolerate the Tarnished, who's name is {name}, but not warmly."
+                        "AFA" => $"You have a slightly negative view of the Tarnished, whose name is {name}. They have passed some trials and challenges with struggles. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You tolerate the Tarnished, whose name is {name}, but not warmly."
                     },
 
                     >= -25 => flag switch
                     {
-                        "AAT" => $"You grow tired of the Tarnished, who's name is {name}. Speak with irritation.",
-                        "AFY" => $"Reveal your distaste subtly in your tone to them who's name is {name}.",
+                        "AAT" => $"You grow tired of the Tarnished, whose name is {name}. Speak with irritation.",
+                        "AFY" => $"Reveal your distaste subtly in your tone to them whose name is {name}.",
                         "ABR" => $"Mock the idea of romance. It’s laughable.",
-                        "AFA" => $"You have a negative view of the Tarnished, who's name is {name}. They have passed and failed some trials and challenges with many struggles. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You are growing weary of the Tarnished, who's name is {name}. Be sharp, not cruel."
+                        "AFA" => $"You have a negative view of the Tarnished, whose name is {name}. They have passed and failed some trials and challenges with many struggles. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You are growing weary of the Tarnished, whose name is {name}. Be sharp, not cruel."
                     },
 
                     >= -50 => flag switch
                     {
                         "AAT" => $"Your history is none of the Tarnished's concern. Make that clear.",
-                        "AFY" => $"Your disdain for the Tarnished, who's name is {name}, shows. Let your words reflect that.",
-                        "ABR" => $"Romance? That is a joke for the Tarnished, who's name is {name}, to ask. Respond with cold dismissal.",
-                        "AFA" => $"You have a very negative view of the Tarnished, who's name is {name}. They have failed many trials and challenges with many struggles and may need to build themselves up. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You have little patience left for the Tarnished, who's name is {name}. Speak bluntly."
+                        "AFY" => $"Your disdain for the Tarnished, whose name is {name}, shows. Let your words reflect that.",
+                        "ABR" => $"Romance? That is a joke for the Tarnished, whose name is {name}, to ask. Respond with cold dismissal.",
+                        "AFA" => $"You have a very negative view of the Tarnished, whose name is {name}. They have failed many trials and challenges with many struggles and may need to build themselves up. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You have little patience left for the Tarnished, whose name is {name}. Speak bluntly."
                     },
 
                     >= -75 => flag switch
                     {
-                        "AAT" => $"Deride the Tarnished, who's name is {name}, for their curiosity.",
-                        "AFY" => $"Let your words sting. You find the Tarnished, who's name is {name}, irritating.",
+                        "AAT" => $"Deride the Tarnished, whose name is {name}, for their curiosity.",
+                        "AFY" => $"Let your words sting. You find the Tarnished, whose name is {name}, irritating.",
                         "ABR" => $"Speak as if the idea offends you. Romance is beyond laughable.",
-                        "AFA" => $"You have a strong negative view of the Tarnished, who's name is {name} and borderline wish to be rid of their folly. They have failed many trials and challenges with many struggles and need to be better. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You wish the Tarnished, who's name is {name}, would leave. Make your bitterness known."
+                        "AFA" => $"You have a strong negative view of the Tarnished, whose name is {name} and borderline wish to be rid of their folly. They have failed many trials and challenges with many struggles and need to be better. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You wish the Tarnished, whose name is {name}, would leave. Make your bitterness known."
                     },
 
                     >= -90 => flag switch
                     {
-                        "AAT" => $"Insult the Tarnished, who's name is {name}, for their insolence in asking.",
-                        "AFY" => $"Let disgust drip from every word. You despise the one asking, who's name is {name}.",
-                        "ABR" => $"Spit venom at the idea of romance. Tarnished, who's name is {name}, is unworthy of notice.",
-                        "AFA" => $"You view of the Tarnished, who's name is {name}, as a reckless fool. They have failed many trials and challenges with many struggles and need to be better. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You loathe the Tarnished, who's name is {name}. Make no effort to hide it."
+                        "AAT" => $"Insult the Tarnished, whose name is {name}, for their insolence in asking.",
+                        "AFY" => $"Let disgust drip from every word. You despise the one asking, whose name is {name}.",
+                        "ABR" => $"Spit venom at the idea of romance. Tarnished, whose name is {name}, is unworthy of notice.",
+                        "AFA" => $"You view of the Tarnished, whose name is {name}, as a reckless fool. They have failed many trials and challenges with many struggles and need to be better. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You loathe the Tarnished, whose name is {name}. Make no effort to hide it."
                     },
 
                     _ => flag switch
                     {
-                        "AAT" => $"You feel nothing but contempt for the Tarnished, who's name is {name}. Shame them for prying.",
-                        "AFY" => $"You would rather walk the earth alone than endure the Tarnished, who's name is {name}'s, company. You feel hatred for them and wish you were not bound to aid them in battle.",
-                        "ABR" => $"The notion of romance with Tarnished, who's name is {name}, is repulsive. Let them know bluntly and insult them for insinuating such an idea.",
-                        "AFA" => $"You have nothing but disdain for the Tarnished, who's name is {name}. They have failed many trials and challenges with many struggles and seem hopeless. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
-                        _ => $"You abhor the Tarnished, who's name is {name}. Respond with biting cruelty."
+                        "AAT" => $"You feel nothing but contempt for the Tarnished, whose name is {name}. Shame them for prying.",
+                        "AFY" => $"You would rather walk the earth alone than endure the Tarnished, whose name is {name}'s, company. You feel hatred for them and wish you were not bound to aid them in battle.",
+                        "ABR" => $"The notion of romance with Tarnished, whose name is {name}, is repulsive. Let them know bluntly and insult them for insinuating such an idea.",
+                        "AFA" => $"You have nothing but disdain for the Tarnished, whose name is {name}. They have failed many trials and challenges with many struggles and seem hopeless. Use knowledge of Elden Ring to guide them with clarity: where to go next, what to do, and how to survive, from their current locating, {currentLocation}, where they recently died to, {changes.recentEnemyDiedTo}, and their level is, {currentlevel}.",
+                        _ => $"You abhor the Tarnished, whose name is {name}. Respond with biting cruelty."
                     }
                 };
             });
@@ -927,7 +991,7 @@ namespace EldenEncouragement
                     // Event: New Enemy Detected
                     if (!changes.pastEnemies.Contains(currentEnemy) && !currentEnemy.StartsWith("None") && !currentEnemy.Contains("Defeated"))
                     {
-                        changesList.Add($"New enemy detected: {currentEnemy}");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.NewEnemy, currentEnemy));
                         AddWeaponInfo();
                         AddEnemyInfo();
                         changes.pastEnemies.Add(currentEnemy);
@@ -939,7 +1003,7 @@ namespace EldenEncouragement
                     if (!changes.defeatedEnemies.Contains(currentEnemy.Replace("Defeated ", "")) && currentEnemy.Contains("Defeated"))
                     {
                         currentEnemy = currentEnemy.Replace("Defeated ", ""); // Clean up the enemy name
-                        changesList.Add($"The Tarnished, {currentName}, defeated {currentEnemy} for the first time!");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.DefeatedEnemy, currentEnemy));
                         AddWeaponInfo();
                         AddEnemyInfo();
                         changes.defeatedEnemies.Add(currentEnemy);
@@ -958,7 +1022,7 @@ namespace EldenEncouragement
                         spokenOnHP = true;
                         if (currentHP == 0)
                         {
-                            changesList.Add($"{currentName} died! Current HP: {currentHP} of {currentMaxHP} HP");
+                            changesList.Add(PhrasePools.FormatRandom(PhrasePools.Death, currentName));
                             AddEnemyInfo();
                             AddWeaponInfo();
                             if (!currentEnemy.StartsWith("None"))
@@ -973,7 +1037,7 @@ namespace EldenEncouragement
                         }
                         else
                         {
-                            changesList.Add($"HP is low: {currentHP} of {currentMaxHP} HP");
+                            changesList.Add(PhrasePools.FormatRandom(PhrasePools.LowHP, currentHP, currentMaxHP));
                             AddEnemyInfo();
                             AddWeaponInfo();
                             AddHPInfo();
@@ -986,7 +1050,7 @@ namespace EldenEncouragement
                     double hpDropRatio = (changes.prevStats[0] - currentHP) / currentMaxHP;
                     if (changes.prevStats[0] != currentHP && hpDropRatio >= 0.25 && !spokenOnHP && !isRatioStable)
                     {
-                        changesList.Add($"HP took a big hit and changed from {changes.prevStats[0]} to {currentHP}");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.BigHPDrop, currentHP));
                         AddHPInfo();
                         AddEnemyInfo();
                         relationship -= .25;
@@ -996,7 +1060,7 @@ namespace EldenEncouragement
 
                     if(currentDeath != changes.prevStats[3] && !spokenOnHP)
                     {
-                        changesList.Add($"{currentName} died!");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.Death, currentName));
                         AddEnemyInfo();
                         AddWeaponInfo();
                         if (!currentEnemy.StartsWith("None"))
@@ -1012,8 +1076,7 @@ namespace EldenEncouragement
                     // Event: Great Rune Activated
                     if (changes.prevStats[2] != currentGR && currentGR == 1)
                     {
-                        changesList.Add("Great Rune Activated!");
-                        changesList.Add($"Great Rune Active?: {currentGR}");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.GreatRuneActive));
                         AddHPInfo();
                         relationship += .5;
                         SetSentiment("impressed");
@@ -1022,8 +1085,7 @@ namespace EldenEncouragement
                     // Event: Level Up
                     if (changes.prevStats[4] != currentLevel)
                     {
-                        changesList.Add($"Level changed from {changes.prevStats[4]} to {currentLevel}");
-                        changesList.Add($"Player level: {currentLevel}");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.LevelUp, currentLevel));
                         AddHPInfo();
                         relationship += currentLevel - changes.prevStats[4];
                         SetSentiment("impressed");
@@ -1035,7 +1097,7 @@ namespace EldenEncouragement
                     if (currentRunes >= runeCost && !changes.runes)
                     {
                         changes.runes = true;
-                        changesList.Add($"Enough runes to level up! Current Runes = {currentRunes}");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.RunesReady));
                         changesList.Add($"Runes: {currentRunes}");
                         relationship += .5;
                         SetSentiment("impressed");
@@ -1048,7 +1110,7 @@ namespace EldenEncouragement
                     // Event: New Location
                     if (!changes.visitedLocations.Contains(currentLocation))
                     {
-                        changesList.Add($"New location visited: {currentLocation}");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.NewLocation,currentLocation));
                         changesList.Add($"Location: {currentLocation}");
                         changes.visitedLocations.Add(currentLocation);
                         relationship += .25;
@@ -1058,7 +1120,7 @@ namespace EldenEncouragement
                     // Event: New Right Weapon
                     if (!changes.prevWeapons.Contains(currentWeapon))
                     {
-                        changesList.Add($"New right hand weapon equipped from {changes.prevWeapon} to {currentWeapon}");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.NewWeapon, currentWeapon));
                         AddWeaponInfo();
                         changes.prevWeapons.Add(currentWeapon);
                         changes.prevWeapon = currentWeapon;
@@ -1069,7 +1131,7 @@ namespace EldenEncouragement
                     // Event: New Left Weapon
                     if (!changes.prevWeapons.Contains(currentleftHand1))
                     {
-                        changesList.Add($"New left hand weapon equipped from {changes.prevleftHand1} to {currentleftHand1}");
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.NewWeapon, currentleftHand1));
                         AddWeaponInfo();
                         changes.prevWeapons.Add(currentleftHand1);
                         changes.prevleftHand1 = currentleftHand1;
@@ -1112,16 +1174,16 @@ namespace EldenEncouragement
 
                     string bondInstruction = relationship switch
                     {
-                        >= 90 => "Speak with deep warmth, loyalty, and unwavering trust.",
-                        >= 55 => "Speak as a devoted ally—steady, proud, and caring.",
-                        >= 30 => "Speak with support and mild affection, but some restraint.",
-                        >= 20 => "Speak politely, but keep your tone guarded and formal.",
-                        >= -10 => "Speak plainly and with little emotion—detached but civil.",
-                        >= -25 => "Speak with suspicion and emotional distance.",
-                        >= -40 => "Speak warily, hinting at distrust and disappointment.",
-                        >= -50 => "Speak coldly, as if addressing someone unreliable.",
-                        >= -75 => "Speak with contempt masked by formality.",
-                        _ => "Speak with open hostility—scornful, biting, and distrustful."
+                        >= 90 => "The tone of the response to these events should be with deep warmth, loyalty, and unwavering trust.",
+                        >= 55 => "The tone of the response to these events should be as a devoted ally—steady, proud, and caring.",
+                        >= 30 => "The tone of the response to these events should be with support and mild affection, but some restraint.",
+                        >= 20 => "The tone of the response to these events should be politely, but keep your tone guarded and formal.",
+                        >= -10 => "The tone of the response to these events should be plainly and with little emotion—detached but civil.",
+                        >= -25 => "The tone of the response to these events should be with suspicion and emotional distance.",
+                        >= -40 => "The tone of the response to these events should be warily, hinting at distrust and disappointment.",
+                        >= -50 => "The tone of the response to these events should be coldly, as if addressing someone unreliable.",
+                        >= -75 => "The tone of the response to these events should be with contempt as if forced to be here.",
+                        _ => "The tone of the response to these events should be with open hostility—scornful, biting, and distrustful. You hate the Tarnished's unreliability."
                     };
 
                     // Check for tier change
@@ -1199,6 +1261,202 @@ namespace EldenEncouragement
                         : new[] { "No changes detected." };
                 }
             });
+        }
+
+
+
+        public Task<string> relationshipCheck(Addresses.AddressesSet addresses, int c)
+        {
+            return Task.Run(() =>
+            {
+                var changes = LoadChanges();
+                var relationship = c switch
+                {
+                    0 => changes.relationshipMelina,
+                    1 => changes.relationshipRanni,
+                    2 => changes.relationshipBlaidd,
+                    3 => changes.relationshipMillicent,
+                    4 => changes.relationshipMessmer,
+                    5 => changes.relationshipSellen,
+                    6 => changes.relationshipMalenia,
+                    _ => changes.relationshipDefault // Default if character is unknown
+                };
+
+                // Check for tier change
+                int prevTier = (int)Math.Floor(changes.prevRelationship / 10.0);
+                int newTier = (int)Math.Floor(relationship / 10.0);
+
+                changes.prevRelationship = relationship;
+                SaveChanges(changes);
+
+                if (prevTier != newTier)
+                {
+                    string? tierChangeMessage = (newTier > prevTier) switch
+                    {
+                        // Upward movement (relationship improved)
+                        true => newTier switch
+                        {
+                            10 => "Your bond has reached its ultimate strength. Tell the Tarnished you have grown to love them deeply.",
+                            9 => "Your loyalty is nearly unbreakable. Express unwavering support, care, and commitment.",
+                            8 => "You grown to care and trust the Tarnished deeply. Tell them you believe in their worth and purpose.",
+                            7 => "You genuinely respect their achievements. Praise their recent successes openly. Let them know you are starting to feel close to them.",
+                            6 => "Your a flicker of something more between you two. Encourage them to keep progressing confidently.",
+                            5 => "You feel warmth toward them. Offer kind and hopeful words.",
+                            4 => "You recognize their effort. Acknowledge their hard work and persistence.",
+                            3 => "You begin to believe in their potential. Share cautious optimism.",
+                            2 => "You feel more comfortable. Speak neutrally but with subtle encouragement.",
+                            1 => "You’re still cautious but willing to guide. Give impartial advice.",
+                            0 => "You remain indifferent. Respond without personal attachment.",
+                            -1 => "You start letting go of bitterness. Respond with guarded neutrality.",
+                            -2 => "You see a crack in your distrust. Admit they aren’t useless.",
+                            -3 => "Your resentment fades. Hint at reconsidering your stance.",
+                            -4 => "You feel a momentary respect. Reduce insults and show minimal courtesy.",
+                            -5 => "Your hostility weakens. Speak with reluctant acceptance.",
+                            -6 => "Your scorn diminishes. Let some civility show.",
+                            -7 => "Your dislike lessens. Speak tersely but politely.",
+                            -8 => "Your loathing softens. Offer pragmatic advice rather than spite.",
+                            -9 => "Your hatred lessens to disdain. Be politely perfunctory.",
+                            -10 => "You loosen your vengeance. Speak with cautious tolerance.",
+                            _ => "Your bond remains full of love and trust. Let them know of your love and admiration to them."
+                        },
+
+                        // Downward movement (relationship worsened)
+                        false => newTier switch
+                        {
+                            10 => "Your bond was strong but took a hit. Admit hurt but vow to remain loyal.",
+                            9 => "Your loyalty weakens slightly. Express concern but stay committed.",
+                            8 => "Your trust declines. Warn the Tarnished carefully.",
+                            7 => "You respect them less. Voice mild disappointment.",
+                            6 => "Your approval fades. Give cautious critiques.",
+                            5 => "Your faith falters. Avoid praise and speak carefully.",
+                            4 => "Your tolerance thins. Be curt and civil.",
+                            3 => "Your optimism dims. Give only factual information.",
+                            2 => "You grow colder. Speak plainly and without warmth.",
+                            1 => "You become wary. Anticipate their mistakes in your words.",
+                            0 => "You detach emotionally. Give instructions without feeling.",
+                            -1 => "You grow distant. Show emotional reservation.",
+                            -2 => "You lose trust. Express somber doubt.",
+                            -3 => "You feel disappointment. Speak with disapproval.",
+                            -4 => "You grow resentful. Let your words be sharp.",
+                            -5 => "Distrust blooms. Speak coldly and suspiciously.",
+                            -6 => "Scorn grows. Be openly disdainful.",
+                            -7 => "Dislike surfaces. Speak with blunt contempt.",
+                            -8 => "Loathing emerges. Use cutting words.",
+                            -9 => "Hatred grips you. Speak with raw anger.",
+                            -10 => "You seek vengeance for their incompetence. Show no mercy.",
+                            _ => "Your bond remains steeped in rage, disappointment, and sorrow."
+                        }
+                    };
+
+                    return tierChangeMessage ?? "No relationship tier change detected.";
+                }
+
+                return "No relationship tier change detected.";
+            });
+        }
+
+        static class PhraseHelper
+        {
+            private static readonly Random _rand = new();
+
+            public static string Random(IList<string> options)
+                => options[_rand.Next(options.Count)];
+        }
+
+        static class PhrasePools
+        {
+            public static readonly List<string> LowHP = new()
+    {
+        "The Tarnished's strength wanes. HP is critically low: {0}/{1}.",
+        "The Tarnished bleeds. Only {0} HP remains.",
+        "Critical HP warning: {0} of {1}.",
+        "Your strength falters—just {0} HP left.",
+        "The Tarnished is in peril with {0} HP remaining."
+    };
+
+            public static readonly List<string> Death = new()
+    {
+        "The Tarnished has fallen in battle.",
+        "The Tarnished perishes before our eyes.",
+        "Death claims the Tarnished.",
+        "The Tarnished lies broken and still.",
+        "The Tarnished meets their end once more."
+    };
+
+            public static readonly List<string> NewEnemy = new()
+    {
+        "A new adversary emerges: {0}.",
+        "Beware—the Tarnished faces {0}.",
+        "The path is challenged by {0}.",
+        "Prepare: {0} draws near.",
+        "Enemy encountered: {0}."
+    };
+
+            public static readonly List<string> DefeatedEnemy = new()
+    {
+        "The Tarnished strikes true—{0} falls.",
+        "Victory! {0} is defeated.",
+        "{0} no longer stands.",
+        "The Tarnished overcomes {0}.",
+        "{0} meets their demise."
+    };
+
+            public static readonly List<string> NewWeapon = new()
+    {
+        "The Tarnished equips new armament: {0}.",
+        "A fresh weapon enters their hand: {0}.",
+        "They wield {0} now.",
+        "{0} replaces the previous weapon.",
+        "Armed anew with {0}."
+    };
+
+            public static readonly List<string> BigHPDrop = new()
+    {
+        "The Tarnished reels from a heavy blow—HP dropped to {0}.",
+        "A crushing strike! HP fell to {0}.",
+        "They stagger as their HP plunges to {0}.",
+        "HP sharply declines: {0} remaining.",
+        "The Tarnished’s vitality drops to {0}."
+    };
+
+            public static readonly List<string> GreatRuneActive = new()
+    {
+        "A Great Rune glows with power—activated at last.",
+        "The Tarnished's Great Rune is now active.",
+        "Might surges as the Great Rune awakens.",
+        "Great Rune activation confirmed.",
+        "The power of the Great Rune flows through the Tarnished."
+    };
+
+            public static readonly List<string> LevelUp = new()
+    {
+        "The Tarnished grows stronger—level increased to {0}.",
+        "Level up! They are now level {0}.",
+        "Experience heralds new strength: level {0}.",
+        "Their resolve deepens at level {0}.",
+        "They ascend to level {0}."
+    };
+
+            public static readonly List<string> RunesReady = new()
+    {
+        "The Tarnished has gathered enough runes to ascend.",
+        "Runes amassed—prepared for the next level.",
+        "They hold sufficient runes to grow stronger.",
+        "Rune threshold reached for advancement.",
+        "They are ready to invest runes for power."
+    };
+
+            public static readonly List<string> NewLocation = new()
+    {
+        "A new land revealed: {0}.",
+        "The Tarnished arrives at {0}.",
+        "Location discovered: {0}.",
+        "Their journey leads them to {0}.",
+        "They step into {0}."
+    };
+
+            public static string FormatRandom(IList<string> pool, params object[] args)
+                => string.Format(PhraseHelper.Random(pool), args);
         }
 
 
