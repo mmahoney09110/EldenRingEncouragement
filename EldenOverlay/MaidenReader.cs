@@ -1370,14 +1370,14 @@ namespace EldenEncouragement
         "The Tarnished's strength wanes. HP is critically low: {0}/{1}.",
         "The Tarnished bleeds. Only {0} HP remains.",
         "Critical HP warning: {0} of {1}.",
-        "Your strength falters—just {0} HP left.",
+        "Their strength falters—just {0} HP left.",
         "The Tarnished is in peril with {0} HP remaining."
     };
 
             public static readonly List<string> Death = new()
     {
         "The Tarnished has fallen in battle.",
-        "The Tarnished perishes before our eyes.",
+        "The Tarnished perishes before your eyes.",
         "Death claims the Tarnished.",
         "The Tarnished lies broken and still.",
         "The Tarnished meets their end once more."
