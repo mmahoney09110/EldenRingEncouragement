@@ -288,7 +288,7 @@ namespace EldenRingOverlay
                 {
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
-                        character = Math.Max(0, Math.Min(result, 6)); // Ensure 0 - 6
+                        character = Math.Max(0, Math.Min(result, 7)); // Ensure 0 - 6
                     lastCharacterId = character; // Set the last known ID
                     break;
                 }
