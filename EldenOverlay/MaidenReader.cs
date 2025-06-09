@@ -34,6 +34,7 @@ namespace EldenEncouragement
         public double relationshipMessmer { get; set; } = 10;
         public double relationshipSellen { get; set; } = 10;
         public double relationshipMalenia { get; set; } = 10; // Relationship level with Patches, can be used for all characters
+        public double relationshipRecluse { get; set; } = 10; 
         public double relationshipDefault { get; set; } = 10; // Default relationship level, can be used for all characters
         public double prevRelationship { get; set; } = 10; // Previous relationship level, for change detection
     }
@@ -285,6 +286,7 @@ namespace EldenEncouragement
                     4 => changes.relationshipMessmer,
                     5 => changes.relationshipSellen,
                     6 => changes.relationshipMalenia,
+                    7 => changes.relationshipRecluse,
                     _ => changes.relationshipDefault
                 };
 
@@ -443,6 +445,7 @@ namespace EldenEncouragement
                     4 => changes.relationshipMessmer,
                     5 => changes.relationshipSellen,
                     6 => changes.relationshipMalenia,
+                    7 => changes.relationshipRecluse,
                     _ => changes.relationshipDefault
                 };
 
@@ -455,6 +458,7 @@ namespace EldenEncouragement
                     case 4: changes.relationshipMessmer -= 1; break;
                     case 5: changes.relationshipSellen -= 1; break;
                     case 6: changes.relationshipMalenia -= 1; break;
+                    case 7: changes.relationshipRecluse -= 1; break;
                     default: changes.relationshipDefault -= 1; break;
                 }
 
@@ -590,6 +594,7 @@ namespace EldenEncouragement
                     4 => changes.relationshipMessmer,
                     5 => changes.relationshipSellen,
                     6 => changes.relationshipMalenia,
+                    7 => changes.relationshipRecluse,
                     _ => changes.relationshipDefault // Default if character is unknown
                 };
 
@@ -925,6 +930,7 @@ namespace EldenEncouragement
                     changes.relationshipMessmer = 10;
                     changes.relationshipSellen = 10;
                     changes.relationshipMalenia = 10;
+                    changes.relationshipRecluse = 10;
 
                     SaveChanges(changes);
 
@@ -959,6 +965,7 @@ namespace EldenEncouragement
                         4 => changes.relationshipMessmer,
                         5 => changes.relationshipSellen,
                         6 => changes.relationshipMalenia,
+                        7 => changes.relationshipRecluse,
                         _ => changes.relationshipDefault // Default if character is unknown
                     };
 
@@ -1162,6 +1169,7 @@ namespace EldenEncouragement
                         case 4: changes.relationshipMessmer = relationship; break;
                         case 5: changes.relationshipSellen = relationship; break;
                         case 6: changes.relationshipMalenia = relationship; break;
+                        case 7: changes.relationshipRecluse = relationship; break;
                         default: changes.relationshipDefault = relationship; break;
                     }
                     changes.currentEnemy = ResolveEnemy();
@@ -1279,6 +1287,7 @@ namespace EldenEncouragement
                     4 => changes.relationshipMessmer,
                     5 => changes.relationshipSellen,
                     6 => changes.relationshipMalenia,
+                    7 => changes.relationshipRecluse,
                     _ => changes.relationshipDefault // Default if character is unknown
                 };
 
