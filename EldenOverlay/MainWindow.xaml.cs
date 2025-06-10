@@ -20,7 +20,7 @@ namespace EldenRingOverlay
         private DispatcherTimer checkEldenRingTimer;
         private int missingCounter = 0;
         private bool speaking = false;
-        private const int MissingThreshold = 35;
+        private const int MissingThreshold = 15;
         private double screenWidth;
         private double screenHeight;
         private int duration = 5;
@@ -94,7 +94,7 @@ namespace EldenRingOverlay
                 typeof(Timeline),
                 new FrameworkPropertyMetadata { DefaultValue = 30 }
             );
-            AllocConsole(); // Shows console window
+            //AllocConsole(); // Shows console window
             InitializeComponent();
             InitializeOverlay();
             GetScreenSize();
@@ -103,7 +103,7 @@ namespace EldenRingOverlay
             // Start the helper process to read data from Elden Ring
             CheatEngineHelper helper = new CheatEngineHelper();
             helper.RunHelperAndReadData(); // Start the helper process to read Elden Ring data
-            Task.Delay(15000).Wait(); // Wait for the helper to initialize
+            Task.Delay(5000).Wait(); // Wait for the helper to initialize
         }
 
         [DllImport("libc")]
@@ -365,7 +365,7 @@ namespace EldenRingOverlay
                     }
                     else if (isFullscreen && intervalESeconds > 0 && !isDead)
                     {
-                        if (_Interrupt)
+                        if (!_Interrupt)
                         {
                             string[] interrupt = await reader.UpdateEvent(character);
 
@@ -401,6 +401,7 @@ namespace EldenRingOverlay
                         }
                         //Console.WriteLine($"Current character ID: {character}");
                         Console.WriteLine($"Current speaking state: {speaking}");
+                        Console.WriteLine($"Current interrupt state: {_Interrupt}");
                         var flag = FlagChecker.GetFlag();
                         switch (flag)
                         {
