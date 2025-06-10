@@ -37,6 +37,7 @@ namespace EldenEncouragement
         public double relationshipRecluse { get; set; } = 10; 
         public double relationshipDefault { get; set; } = 10; // Default relationship level, can be used for all characters
         public double prevRelationship { get; set; } = 10; // Previous relationship level, for change detection
+        public double prevCharacter { get; set; }
     }
 
     internal class MaidenReader
@@ -132,18 +133,29 @@ namespace EldenEncouragement
 
         }
 
-        public async Task UpdateEvent(int c)
+        public async Task<string[]> UpdateEvent(int c)
         {
             try
             {
                 var process = FindProcess("eldenring");
                 using var reader = new MemoryReader(process, PROCESS_VM_READ | PROCESS_QUERY_INFORMATION);
                 var addresses = Addresses.GetAddresses();
-                await reader.GetChangedStats(addresses,c);
+                string[] changed = await reader.GetChangedStats(addresses,c);
+
+                if (changed.Length < 2 || changed[0] == "No changes detected." || changed[0] == "Initial stats assigned.")
+                {
+                    return new string[] { "No changes detected." };
+                }
+                else
+                {
+                    return changed;
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+                return new string[] { "No changes detected" };
+
             }
 
         }
@@ -174,7 +186,7 @@ namespace EldenEncouragement
 
         }
 
-        public static async Task<string> SendBodyAsync(string bodyValue, int characterValue)
+        public async Task<string> SendBodyAsync(string bodyValue, int characterValue)
         {
             // Read language from settings.ini
             string language = "English"; // default
@@ -295,7 +307,7 @@ namespace EldenEncouragement
                 int choice = rnd.Next(8); // 0..7
 
                 // 3) Outer switch for relationship range, inner switch for choice (0..7)
-                string relationshipPrompt = relationship switch
+                string relationshipPrompt = "You wish to say something: " + relationship switch
                 {
                     // ────────── VERY STRONG POSITIVE (>= 90) ──────────
                     >= 90 => choice switch
@@ -777,33 +789,33 @@ namespace EldenEncouragement
             string outputFile = Path.Combine(outputDir, "lockon_addr.txt");
             if (!File.Exists(outputFile))
             {
-                Console.WriteLine("No output file found at: " + outputFile);
+                //Console.WriteLine("No output file found at: " + outputFile);
                 return "None";
             }
             var addr = File.ReadAllLines(outputFile);
             if (addr.Length == 0 || string.IsNullOrWhiteSpace(addr[0]))
             {
-                Console.WriteLine("Output file is empty or invalid.");
+                //Console.WriteLine("Output file is empty or invalid.");
                 return "None";
             }
-            Console.WriteLine("The address is: " + addr[0]);
+            //Console.WriteLine("The address is: " + addr[0]);
             // Parse the hex string into a long
             if (ulong.TryParse(addr[0].Replace("0x", ""), System.Globalization.NumberStyles.HexNumber, null, out ulong address))
             {
                 // Use as needed
 
-                Console.WriteLine($"Parsed Address: 0x{address:X}");
+                //Console.WriteLine($"Parsed Address: 0x{address:X}");
             }
             else
             {
-                Console.WriteLine("Failed to parse address.");
+                //Console.WriteLine("Failed to parse address.");
                 return "None";
             }
             try
             {
                 if(address == 0)
                 {
-                    Console.WriteLine("Address is zero, returning None.");
+                    //Console.WriteLine("Address is zero, returning None.");
                     return "None";
                 }
                 //Enemy Id is at +0x60 from the address
@@ -815,7 +827,7 @@ namespace EldenEncouragement
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Failed to read pointer: " + ex.Message);
+                //Console.WriteLine("Failed to read pointer: " + ex.Message);
                 return "None";
             }
             
@@ -838,7 +850,7 @@ namespace EldenEncouragement
         }
         public static void SaveChanges(Changes changes, string path = "saved_stats.json")
         {
-            Console.WriteLine($"Saving changes to {path}...");
+            //Console.WriteLine($"Saving changes to {path}...");
             var json = System.Text.Json.JsonSerializer.Serialize(changes, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(path, json);
         }
@@ -847,7 +859,7 @@ namespace EldenEncouragement
         {
             if (File.Exists(path))
             {
-                Console.WriteLine($"Loading changes from {path}...");
+                //Console.WriteLine($"Loading changes from {path}...");
                 var json = File.ReadAllText(path);
                 return System.Text.Json.JsonSerializer.Deserialize<Changes>(json);
             }
@@ -931,6 +943,7 @@ namespace EldenEncouragement
                     changes.relationshipSellen = 10;
                     changes.relationshipMalenia = 10;
                     changes.relationshipRecluse = 10;
+                    changes.prevCharacter = c; // Store the character index
 
                     SaveChanges(changes);
 
@@ -1127,7 +1140,7 @@ namespace EldenEncouragement
                     // Event: New Right Weapon
                     if (!changes.prevWeapons.Contains(currentWeapon))
                     {
-                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.NewWeapon, currentWeapon));
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.NewWeapon, currentWeapon, changes.prevWeapon));
                         AddWeaponInfo();
                         changes.prevWeapons.Add(currentWeapon);
                         changes.prevWeapon = currentWeapon;
@@ -1138,7 +1151,7 @@ namespace EldenEncouragement
                     // Event: New Left Weapon
                     if (!changes.prevWeapons.Contains(currentleftHand1))
                     {
-                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.NewWeapon, currentleftHand1));
+                        changesList.Add(PhrasePools.FormatRandom(PhrasePools.NewWeapon, currentleftHand1, changes.prevleftHand1));
                         AddWeaponInfo();
                         changes.prevWeapons.Add(currentleftHand1);
                         changes.prevleftHand1 = currentleftHand1;
@@ -1194,74 +1207,82 @@ namespace EldenEncouragement
                         _ => "The tone of the response to these events should be with open hostility—scornful, biting, and distrustful. You hate the Tarnished's unreliability."
                     };
 
-                    // Check for tier change
-                    int prevTier = (int)Math.Floor(prevRelationship / 10.0);
-                    int newTier = (int)Math.Floor(relationship / 10.0);
-
-                    if (prevTier != newTier)
+                    if (changes.prevCharacter != c)
                     {
-                        string? tierChangeMessage = (newTier > prevTier) switch
-                        {
-                            // Upward movement (relationship improved)
-                            true => newTier switch
-                            {
-                                10 => "Your bond has reached its ultimate strength. Tell the Tarnished you have grown to love them deeply.",
-                                9 => "Your loyalty is nearly unbreakable. Express unwavering support, care, and commitment.",
-                                8 => "You grown to care and trust the Tarnished deeply. Tell them you believe in their worth and purpose.",
-                                7 => "You genuinely respect their achievements. Praise their recent successes openly. Let them know you are starting to feel close to them.",
-                                6 => "Your a flicker of something more between you two. Encourage them to keep progressing confidently.",
-                                5 => "You feel warmth toward them. Offer kind and hopeful words.",
-                                4 => "You recognize their effort. Acknowledge their hard work and persistence.",
-                                3 => "You begin to believe in their potential. Share cautious optimism.",
-                                2 => "You feel more comfortable. Speak neutrally but with subtle encouragement.",
-                                1 => "You’re still cautious but willing to guide. Give impartial advice.",
-                                0 => "You remain indifferent. Respond without personal attachment.",
-                                -1 => "You start letting go of bitterness. Respond with guarded neutrality.",
-                                -2 => "You see a crack in your distrust. Admit they aren’t useless.",
-                                -3 => "Your resentment fades. Hint at reconsidering your stance.",
-                                -4 => "You feel a momentary respect. Reduce insults and show minimal courtesy.",
-                                -5 => "Your hostility weakens. Speak with reluctant acceptance.",
-                                -6 => "Your scorn diminishes. Let some civility show.",
-                                -7 => "Your dislike lessens. Speak tersely but politely.",
-                                -8 => "Your loathing softens. Offer pragmatic advice rather than spite.",
-                                -9 => "Your hatred lessens to disdain. Be politely perfunctory.",
-                                -10 => "You loosen your vengeance. Speak with cautious tolerance.",
-                                _ => "Your bond remains full of love and trust. Let them know of your love and admiration to them."
-                            },
-
-                            // Downward movement (relationship worsened)
-                            false => newTier switch
-                            {
-                                10 => "Your bond was strong but took a hit. Admit hurt but vow to remain loyal.",
-                                9 => "Your loyalty weakens slightly. Express concern but stay committed.",
-                                8 => "Your trust declines. Warn the Tarnished carefully.",
-                                7 => "You respect them less. Voice mild disappointment.",
-                                6 => "Your approval fades. Give cautious critiques.",
-                                5 => "Your faith falters. Avoid praise and speak carefully.",
-                                4 => "Your tolerance thins. Be curt and civil.",
-                                3 => "Your optimism dims. Give only factual information.",
-                                2 => "You grow colder. Speak plainly and without warmth.",
-                                1 => "You become wary. Anticipate their mistakes in your words.",
-                                0 => "You detach emotionally. Give instructions without feeling.",
-                                -1 => "You grow distant. Show emotional reservation.",
-                                -2 => "You lose trust. Express somber doubt.",
-                                -3 => "You feel disappointment. Speak with disapproval.",
-                                -4 => "You grow resentful. Let your words be sharp.",
-                                -5 => "Distrust blooms. Speak coldly and suspiciously.",
-                                -6 => "Scorn grows. Be openly disdainful.",
-                                -7 => "Dislike surfaces. Speak with blunt contempt.",
-                                -8 => "Loathing emerges. Use cutting words.",
-                                -9 => "Hatred grips you. Speak with raw anger.",
-                                -10 => "You seek vengeance for their incompetence. Show no mercy.",
-                                _ => "Your bond remains steeped in rage, disappointment, and sorrow."
-
-                            }
-                        };
-
-                        if (!string.IsNullOrEmpty(tierChangeMessage))
-                            changesList.Add($"Relationship tier shift detected:\n{tierChangeMessage}");
+                        // Character switched — do not run relationship change logic
+                        changes.prevCharacter = c;
+                        SaveChanges(changes);
                     }
+                    else
+                    {
+                        // Check for tier change
+                        int prevTier = (int)Math.Floor(prevRelationship / 10.0);
+                        int newTier = (int)Math.Floor(relationship / 10.0);
 
+                        if (prevTier != newTier)
+                        {
+                            string? tierChangeMessage = (newTier > prevTier) switch
+                            {
+                                // Upward movement (relationship improved)
+                                true => newTier switch
+                                {
+                                    10 => "Your bond has reached its ultimate strength. Tell the Tarnished you have grown to love them deeply.",
+                                    9 => "Your loyalty is nearly unbreakable. Express unwavering support, care, and commitment.",
+                                    8 => "You grown to care and trust the Tarnished deeply. Tell them you believe in their worth and purpose.",
+                                    7 => "You genuinely respect their achievements. Praise their recent successes openly. Let them know you are starting to feel close to them.",
+                                    6 => "Your a flicker of something more between you two. Encourage them to keep progressing confidently.",
+                                    5 => "You feel warmth toward them. Offer kind and hopeful words.",
+                                    4 => "You recognize their effort. Acknowledge their hard work and persistence.",
+                                    3 => "You begin to believe in their potential. Share cautious optimism.",
+                                    2 => "You feel more comfortable. Speak neutrally but with subtle encouragement.",
+                                    1 => "You’re still cautious but willing to guide. Give impartial advice.",
+                                    0 => "You remain indifferent. Respond without personal attachment.",
+                                    -1 => "You start letting go of bitterness. Respond with guarded neutrality.",
+                                    -2 => "You see a crack in your distrust. Admit they aren’t useless.",
+                                    -3 => "Your resentment fades. Hint at reconsidering your stance.",
+                                    -4 => "You feel a momentary respect. Reduce insults and show minimal courtesy.",
+                                    -5 => "Your hostility weakens. Speak with reluctant acceptance.",
+                                    -6 => "Your scorn diminishes. Let some civility show.",
+                                    -7 => "Your dislike lessens. Speak tersely but politely.",
+                                    -8 => "Your loathing softens. Offer pragmatic advice rather than spite.",
+                                    -9 => "Your hatred lessens to disdain. Be politely perfunctory.",
+                                    -10 => "You loosen your vengeance. Speak with cautious tolerance.",
+                                    _ => "Your bond remains full of love and trust. Let them know of your love and admiration to them."
+                                },
+
+                                // Downward movement (relationship worsened)
+                                false => newTier switch
+                                {
+                                    10 => "Your bond was strong but took a hit. Admit hurt but vow to remain loyal.",
+                                    9 => "Your loyalty weakens slightly. Express concern but stay committed.",
+                                    8 => "Your trust declines. Warn the Tarnished carefully.",
+                                    7 => "You respect them less. Voice mild disappointment.",
+                                    6 => "Your approval fades. Give cautious critiques.",
+                                    5 => "Your faith falters. Avoid praise and speak carefully.",
+                                    4 => "Your tolerance thins. Be curt and civil.",
+                                    3 => "Your optimism dims. Give only factual information.",
+                                    2 => "You grow colder. Speak plainly and without warmth.",
+                                    1 => "You become wary. Anticipate their mistakes in your words.",
+                                    0 => "You detach emotionally. Give instructions without feeling.",
+                                    -1 => "You grow distant. Show emotional reservation.",
+                                    -2 => "You lose trust. Express somber doubt.",
+                                    -3 => "You feel disappointment. Speak with disapproval.",
+                                    -4 => "You grow resentful. Let your words be sharp.",
+                                    -5 => "Distrust blooms. Speak coldly and suspiciously.",
+                                    -6 => "Scorn grows. Be openly disdainful.",
+                                    -7 => "Dislike surfaces. Speak with blunt contempt.",
+                                    -8 => "Loathing emerges. Use cutting words.",
+                                    -9 => "Hatred grips you. Speak with raw anger.",
+                                    -10 => "You seek vengeance for their incompetence. Show no mercy.",
+                                    _ => "Your bond remains steeped in rage, disappointment, and sorrow."
+
+                                }
+                            };
+
+                            if (!string.IsNullOrEmpty(tierChangeMessage))
+                                changesList.Add($"Relationship tier shift detected:\n{tierChangeMessage}");
+                        }
+                    }
                     // Save and Return
                     SaveChanges(changes);
                     return changesList.Count > 0
@@ -1291,75 +1312,84 @@ namespace EldenEncouragement
                     _ => changes.relationshipDefault // Default if character is unknown
                 };
 
-                // Check for tier change
-                int prevTier = (int)Math.Floor(changes.prevRelationship / 10.0);
-                int newTier = (int)Math.Floor(relationship / 10.0);
-
-                changes.prevRelationship = relationship;
-                SaveChanges(changes);
-
-                if (prevTier != newTier)
+                if (changes.prevCharacter != c)
                 {
-                    string? tierChangeMessage = (newTier > prevTier) switch
-                    {
-                        // Upward movement (relationship improved)
-                        true => "Your bond to the Tarnished grows. Tell them this and the nature of your current bond. " + newTier switch
-                        {
-                            10 => "Your bond has reached its ultimate strength. Tell the Tarnished you have grown to love them deeply.",
-                            9 => "Your loyalty is nearly unbreakable. Express unwavering support, care, and commitment.",
-                            8 => "You grown to care and trust the Tarnished deeply. Tell them you believe in their worth and purpose.",
-                            7 => "You genuinely respect their achievements. Praise their recent successes openly. Let them know you are starting to feel close to them.",
-                            6 => "Your a flicker of something more between you two. Encourage them to keep progressing confidently.",
-                            5 => "You feel warmth toward them. Offer kind and hopeful words.",
-                            4 => "You recognize their effort. Acknowledge their hard work and persistence.",
-                            3 => "You begin to believe in their potential. Share cautious optimism.",
-                            2 => "You feel more comfortable. Speak neutrally but with subtle encouragement.",
-                            1 => "You’re still cautious but willing to guide. Give impartial advice.",
-                            0 => "You remain indifferent. Respond without personal attachment.",
-                            -1 => "You start letting go of bitterness. Respond with guarded neutrality.",
-                            -2 => "You see a crack in your distrust. Admit they aren’t useless.",
-                            -3 => "Your resentment fades. Hint at reconsidering your stance.",
-                            -4 => "You feel a momentary respect. Reduce insults and show minimal courtesy.",
-                            -5 => "Your hostility weakens. Speak with reluctant acceptance.",
-                            -6 => "Your scorn diminishes. Let some civility show.",
-                            -7 => "Your dislike lessens. Speak tersely but politely.",
-                            -8 => "Your loathing softens. Offer pragmatic advice rather than spite.",
-                            -9 => "Your hatred lessens to disdain. Be politely perfunctory.",
-                            -10 => "You loosen your vengeance. Speak with cautious tolerance.",
-                            _ => "Your bond remains full of love and trust. Let them know of your love and admiration to them."
-                        },
-
-                        // Downward movement (relationship worsened)
-                        false => "Your bond to the Tarnished falls. Tell them this and the nature of your current bond. " + newTier switch
-                        {
-                            10 => "Your bond was strong but took a hit. Admit hurt but vow to remain loyal.",
-                            9 => "Your loyalty weakens slightly. Express concern but stay committed.",
-                            8 => "Your trust declines. Warn the Tarnished carefully.",
-                            7 => "You respect them less. Voice mild disappointment.",
-                            6 => "Your approval fades. Give cautious critiques.",
-                            5 => "Your faith falters. Avoid praise and speak carefully.",
-                            4 => "Your tolerance thins. Be curt and civil.",
-                            3 => "Your optimism dims. Give only factual information.",
-                            2 => "You grow colder. Speak plainly and without warmth.",
-                            1 => "You become wary. Anticipate their mistakes in your words.",
-                            0 => "You detach emotionally. Give instructions without feeling.",
-                            -1 => "You grow distant. Show emotional reservation.",
-                            -2 => "You lose trust. Express somber doubt.",
-                            -3 => "You feel disappointment. Speak with disapproval.",
-                            -4 => "You grow resentful. Let your words be sharp.",
-                            -5 => "Distrust blooms. Speak coldly and suspiciously.",
-                            -6 => "Scorn grows. Be openly disdainful.",
-                            -7 => "Dislike surfaces. Speak with blunt contempt.",
-                            -8 => "Loathing emerges. Use cutting words.",
-                            -9 => "Hatred grips you. Speak with raw anger.",
-                            -10 => "You seek vengeance for their incompetence. Show no mercy.",
-                            _ => "Your bond remains steeped in rage, disappointment, and sorrow."
-                        }
-                    };
-
-                    return $"The nature of your bond to the Tarnished has shifted. {tierChangeMessage}" ?? "No relationship tier change detected.";
+                    // Character switched — do not run relationship change logic
+                    changes.prevCharacter = c;
+                    changes.prevRelationship = relationship; // Reset to current character's relationship
+                    SaveChanges(changes);
                 }
+                else
+                {
+                    // Check for tier change
+                    int prevTier = (int)Math.Floor(changes.prevRelationship / 10.0);
+                    int newTier = (int)Math.Floor(relationship / 10.0);
 
+                    changes.prevRelationship = relationship;
+                    SaveChanges(changes);
+
+                    if (prevTier != newTier)
+                    {
+                        string? tierChangeMessage = (newTier > prevTier) switch
+                        {
+                            // Upward movement (relationship improved)
+                            true => "Your bond to the Tarnished grows. Tell them this and the nature of your current bond. " + newTier switch
+                            {
+                                10 => "Your bond has reached its ultimate strength. Tell the Tarnished you have grown to love them deeply.",
+                                9 => "Your loyalty is nearly unbreakable. Express unwavering support, care, and commitment.",
+                                8 => "You grown to care and trust the Tarnished deeply. Tell them you believe in their worth and purpose.",
+                                7 => "You genuinely respect their achievements. Praise their recent successes openly. Let them know you are starting to feel close to them.",
+                                6 => "Your a flicker of something more between you two. Encourage them to keep progressing confidently.",
+                                5 => "You feel warmth toward them. Offer kind and hopeful words.",
+                                4 => "You recognize their effort. Acknowledge their hard work and persistence.",
+                                3 => "You begin to believe in their potential. Share cautious optimism.",
+                                2 => "You feel more comfortable. Speak neutrally but with subtle encouragement.",
+                                1 => "You’re still cautious but willing to guide. Give impartial advice.",
+                                0 => "You remain indifferent. Respond without personal attachment.",
+                                -1 => "You start letting go of bitterness. Respond with guarded neutrality.",
+                                -2 => "You see a crack in your distrust. Admit they aren’t useless.",
+                                -3 => "Your resentment fades. Hint at reconsidering your stance.",
+                                -4 => "You feel a momentary respect. Reduce insults and show minimal courtesy.",
+                                -5 => "Your hostility weakens. Speak with reluctant acceptance.",
+                                -6 => "Your scorn diminishes. Let some civility show.",
+                                -7 => "Your dislike lessens. Speak tersely but politely.",
+                                -8 => "Your loathing softens. Offer pragmatic advice rather than spite.",
+                                -9 => "Your hatred lessens to disdain. Be politely perfunctory.",
+                                -10 => "You loosen your vengeance. Speak with cautious tolerance.",
+                                _ => "Your bond remains full of love and trust. Let them know of your love and admiration to them."
+                            },
+
+                            // Downward movement (relationship worsened)
+                            false => "Your bond to the Tarnished falls. Tell them this and the nature of your current bond. " + newTier switch
+                            {
+                                10 => "Your bond was strong but took a hit. Admit hurt but vow to remain loyal.",
+                                9 => "Your loyalty weakens slightly. Express concern but stay committed.",
+                                8 => "Your trust declines. Warn the Tarnished carefully.",
+                                7 => "You respect them less. Voice mild disappointment.",
+                                6 => "Your approval fades. Give cautious critiques.",
+                                5 => "Your faith falters. Avoid praise and speak carefully.",
+                                4 => "Your tolerance thins. Be curt and civil.",
+                                3 => "Your optimism dims. Give only factual information.",
+                                2 => "You grow colder. Speak plainly and without warmth.",
+                                1 => "You become wary. Anticipate their mistakes in your words.",
+                                0 => "You detach emotionally. Give instructions without feeling.",
+                                -1 => "You grow distant. Show emotional reservation.",
+                                -2 => "You lose trust. Express somber doubt.",
+                                -3 => "You feel disappointment. Speak with disapproval.",
+                                -4 => "You grow resentful. Let your words be sharp.",
+                                -5 => "Distrust blooms. Speak coldly and suspiciously.",
+                                -6 => "Scorn grows. Be openly disdainful.",
+                                -7 => "Dislike surfaces. Speak with blunt contempt.",
+                                -8 => "Loathing emerges. Use cutting words.",
+                                -9 => "Hatred grips you. Speak with raw anger.",
+                                -10 => "You seek vengeance for their incompetence. Show no mercy.",
+                                _ => "Your bond remains steeped in rage, disappointment, and sorrow."
+                            }
+                        };
+
+                        return $"The nature of your bond to the Tarnished has shifted. {tierChangeMessage}" ?? "No relationship tier change detected.";
+                    }
+                }
                 return "No relationship tier change detected.";
             });
         }
@@ -1412,11 +1442,11 @@ namespace EldenEncouragement
 
             public static readonly List<string> NewWeapon = new()
     {
-        "The Tarnished equips new armament: {0}.",
-        "A fresh weapon enters their hand: {0}.",
-        "They wield {0} now.",
-        "{0} replaces the previous weapon.",
-        "Armed anew with {0}."
+        "The Tarnished equips new armament: {0}, Which replaces {1}",
+        "A fresh weapon enters their hand, {0}, Replacing {1}",
+        "They wield {0} now, which replaces {1}",
+        "{0} replaces the previous weapon, {1}.",
+        "Armed anew with {0}, which replaced {1}"
     };
 
             public static readonly List<string> BigHPDrop = new()

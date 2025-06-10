@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using EldenEncouragement;
+using System.Diagnostics;
 using System.IO;
 using System.Media;
 using System.Runtime.InteropServices;
@@ -10,7 +11,7 @@ using System.Windows.Interop;
 using System.Windows.Media; // Needed for Matrix
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using EldenEncouragement;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace EldenRingOverlay
 {
@@ -32,6 +33,8 @@ namespace EldenRingOverlay
         private const int WS_EX_NOACTIVATE = 0x08000000;
         private const int WS_EX_LAYERED = 0x00080000;
         private const int WS_EX_TOPMOST = 0x00000008;
+
+        private bool _Interrupt = false;
 
         [DllImport("user32.dll")]
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
@@ -234,7 +237,7 @@ namespace EldenRingOverlay
                             File.WriteAllText(outputFile, "0"); // Clear the file
                         }
                         helper.StopHelper(); // Stop the helper process if Elden Ring is not running
-                        Application.Current.Shutdown();
+                        System.Windows.Application.Current.Shutdown();
                     }
                 }
             };
@@ -279,6 +282,20 @@ namespace EldenRingOverlay
                 }
             }
 
+            // Read from settings.ini
+            int interruptible = 1; // default
+            var iniLine = File.ReadAllLines("settings.ini");
+            foreach (var line in iniLines)
+            {
+                if (line.Trim().StartsWith("Interrupt="))
+                {
+                    var value = line.Split('=')[1].Trim();
+                    if (int.TryParse(value, out int result))
+                        interruptible = Math.Max(0, Math.Min(1, result)); // Ensure 0 or 1
+                    break;
+                }
+            }
+
             // Read character from settings.ini
             int character = 0; // default
             var Lines = File.ReadAllLines("settings.ini");
@@ -289,7 +306,6 @@ namespace EldenRingOverlay
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
                         character = Math.Max(0, Math.Min(result, 7)); // Ensure 0 - 6
-                    lastCharacterId = character; // Set the last known ID
                     break;
                 }
             }
@@ -349,7 +365,32 @@ namespace EldenRingOverlay
                     }
                     else if (isFullscreen && intervalESeconds > 0 && !isDead)
                     {
-                        await reader.UpdateEvent(character);
+                        if (_Interrupt)
+                        {
+                            string[] interrupt = await reader.UpdateEvent(character);
+
+                            // If we only got one element back, there was no "real" event
+                            if (interrupt.Length == 2 && interrupt[0] != "No changes detected." && interruptible == 1 && speaking)
+                            {
+                                Console.WriteLine("Interrupt event detected, interrupting current speech if any.");
+
+                                _Interrupt = true; // Set the interrupt flag
+
+                                while (speaking)
+                                {
+                                    //wait for speaking to be false
+                                    await Task.Delay(250);
+                                }
+
+                                _Interrupt = false; // Reset the interrupt flag
+
+                                bool spoke = await GetEvent(character, tts, interrupt);
+                                if (spoke)
+                                {
+                                    lastEventTime = DateTime.Now;
+                                }
+                            }
+                        }
                     }
                     if (isFullscreen)
                     {
@@ -358,7 +399,7 @@ namespace EldenRingOverlay
                             character = await CheckCharacterSwitch(character, tts);
 
                         }
-                        Console.WriteLine($"Current character ID: {character}");
+                        //Console.WriteLine($"Current character ID: {character}");
                         Console.WriteLine($"Current speaking state: {speaking}");
                         var flag = FlagChecker.GetFlag();
                         switch (flag)
@@ -688,6 +729,10 @@ namespace EldenRingOverlay
                     bool playSpecial = true;
                     foreach (var raw in sentences)
                     {
+                        if(_Interrupt)
+                        {
+                            return;
+                        }
                         var sentence = raw.Trim();
                         if (sentence == "") continue;
 
@@ -843,12 +888,24 @@ namespace EldenRingOverlay
             }
         }
 
-        private async Task<bool> GetEvent(int c, EldenTTS tts)
+        private async Task<bool> GetEvent(int c, EldenTTS tts, string[]? inturrupt = null)
         {
+            Console.WriteLine("Getting event...");
             speaking = true;
             try
             {
-                string[] text = await reader.GetEvent(c);
+                string[] text = { };
+                string AIresponse = "";
+                if (inturrupt == null)
+                {
+                    text = await reader.GetEvent(c);
+                }
+                else
+                {
+                    AIresponse = await reader.SendBodyAsync(inturrupt[0],c);
+                    text = new string[] { AIresponse, inturrupt[1] };
+                }
+
 
                 // If we only got one element back, there was no "real" event
                 if (text.Length < 2 || text[0] == "No changes detected.")
@@ -889,6 +946,11 @@ namespace EldenRingOverlay
                     var playSpecial = true;
                     foreach (var raw in sentences)
                     {
+                        if (_Interrupt)
+                        {
+                            return false; // Exit if interrupted
+                        }
+
                         var sentence = raw.Trim();
                         if (sentence == "") continue;
 
@@ -916,6 +978,7 @@ namespace EldenRingOverlay
                             wavFilePath = $@"Audio\{c}_omp_{fileNumber}.wav";
                             temp = fileNumber;
                         }
+
 
                         // Azure voice if set
                         if (tts != null)
