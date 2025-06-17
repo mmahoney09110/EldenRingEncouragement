@@ -370,7 +370,7 @@ namespace EldenRingOverlay
                             string[] interrupt = await reader.UpdateEvent(character);
 
                             // If we only got one element back, there was no "real" event
-                            if (interrupt.Length == 2 && interrupt[0] != "No changes detected." && interruptible == 1 && speaking)
+                            if (interrupt.Length == 2 && interrupt[0] != "No changes detected." && interruptible == 1 && speaking && !interrupt[0].Contains("Runes:"))
                             {
                                 Console.WriteLine("Interrupt event detected, interrupting current speech if any.");
 

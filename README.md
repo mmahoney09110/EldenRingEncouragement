@@ -59,6 +59,10 @@ This project is licensed under the [MIT License](./LICENSE). You are free to use
 ## Demo
 Published demo can be found here: [Nexus](https://www.nexusmods.com/eldenring/mods/7999)
 
+## Recent Changes
+- Changes to prompt pool to give more accurate responses
+- Removed redundant relationship response.
+- Companion no longer interrupt for rune change.
 ---
 
 > *"Arise now, Ye Tarnished... and bring your HP bar with you."*
