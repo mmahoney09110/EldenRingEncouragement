@@ -40,6 +40,7 @@ namespace EldenEncouragement
         public double relationshipDefault { get; set; } = 10; // Default relationship level, can be used for all characters
         public double prevRelationship { get; set; } = 10; // Previous relationship level, for change detection
         public double prevCharacter { get; set; }
+        public HashSet<int> prevCharacters { get; set; } = new();// Previous characters
     }
 
     internal class MaidenReader
@@ -187,7 +188,7 @@ namespace EldenEncouragement
             }
 
         }
-
+        string lastSaid = "";
         public async Task<string> SendBodyAsync(string bodyValue, int characterValue)
         {
             // Read language from settings.ini
@@ -221,7 +222,7 @@ namespace EldenEncouragement
             }
             var content = new FormUrlEncodedContent(new[]
             {
-                new KeyValuePair<string, string>("Body", "You shall respond in under "+ sentencesLimit + " sentences.\n"+ bodyValue + "\n They await your insight, spoken in their tongue: " + language + "."),
+                new KeyValuePair<string, string>("Body", "You shall respond in under "+ sentencesLimit + " sentences.\n" + "The last thing you said was: '" + lastSaid + "' Avoid using similar words from your last reponse in your response to this:\n" + bodyValue + "\n The Tarnished await your insight, spoken in their tongue: " + language + "."),
                 new KeyValuePair<string, string>("Character", characterValue.ToString())
             });
 
@@ -231,7 +232,8 @@ namespace EldenEncouragement
             if (response.IsSuccessStatusCode)
             {
                 // Since it's now just a string, not JSON: {"message":"..."}
-                return await response.Content.ReadAsStringAsync();
+                lastSaid = await response.Content.ReadAsStringAsync();
+                return lastSaid;
             }
 
             return $"I'm with you, Tarnished.";
@@ -379,7 +381,7 @@ namespace EldenEncouragement
                         4 => $"Maintain emotional distance, {name}. Say what is necessary and no more.",
                         5 => $"Note their presence without comment on progress, {name}. Acknowledge and move on.",
                         6 => $"Speak plainly and dispassionately, {name}. Avoid any hint of bias.",
-                        7 => $"Issue a procedural update, {name}. Treat them as one of many.",
+                        7 => $"Your relationship to the Tarnished, {name} is neutral. Say whatever is on your mind in character.",
                         _ => throw new InvalidOperationException()
                     },
 
@@ -923,7 +925,7 @@ namespace EldenEncouragement
                 }
 
                 // If this is the first time, assign the values to the previous stats
-                if (changes.prevStats == null)
+                if (changes.prevStats == null || !changes.prevCharacters.Contains(c))
                 {
                     changes.prevStats = new double[] { currentHP, currentMaxHP, currentGR, currentDeath, currentLevel, currentRunes };
                     changes.prevLocation = currentLocation;
@@ -956,12 +958,13 @@ namespace EldenEncouragement
                     changes.relationshipExecutor = 10;
                     changes.relationshipDuchess = 10;
                     changes.prevCharacter = c; // Store the character index
+                    changes.prevCharacters.Add(c); // Add the character index to the list of previous characters
 
                     SaveChanges(changes);
 
                     sentiment = "general";
 
-                    return new string[] { "Event detected: First time talking to you!\n" +
+                    return new string[] { "Event detected: First time the Tarnished and you have met. Their current stats are:\n" +
                     $"HP: {currentHP}\n" +
                     $"Max HP: {currentMaxHP}\n" +
                     $"Great Rune Active?: {currentGR}\n" +
@@ -1298,7 +1301,7 @@ namespace EldenEncouragement
                                 -8 => "Your loathing softens. Offer pragmatic advice rather than spite.",
                                 -9 => "Your hatred lessens to disdain. Be politely perfunctory.",
                                 -10 => "You loosen your vengeance. Speak with cautious tolerance.",
-                                _ => "Your bond remains full of love and trust. Let them know of your love and admiration to them."
+                                _ => "Your bond remains full of love and trust and at its absolute peek. Let them know of your love and admiration to them."
                             },
 
                             // Downward movement (relationship worsened)
