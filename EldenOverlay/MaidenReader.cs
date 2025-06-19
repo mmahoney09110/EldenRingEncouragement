@@ -34,7 +34,9 @@ namespace EldenEncouragement
         public double relationshipMessmer { get; set; } = 10;
         public double relationshipSellen { get; set; } = 10;
         public double relationshipMalenia { get; set; } = 10; // Relationship level with Patches, can be used for all characters
-        public double relationshipRecluse { get; set; } = 10; 
+        public double relationshipRecluse { get; set; } = 10;
+        public double relationshipExecutor { get; set; } = 10;
+        public double relationshipDuchess { get; set; } = 10;
         public double relationshipDefault { get; set; } = 10; // Default relationship level, can be used for all characters
         public double prevRelationship { get; set; } = 10; // Previous relationship level, for change detection
         public double prevCharacter { get; set; }
@@ -299,6 +301,8 @@ namespace EldenEncouragement
                     5 => changes.relationshipSellen,
                     6 => changes.relationshipMalenia,
                     7 => changes.relationshipRecluse,
+                    8 => changes.relationshipExecutor,
+                    9 => changes.relationshipDuchess,
                     _ => changes.relationshipDefault
                 };
 
@@ -458,6 +462,8 @@ namespace EldenEncouragement
                     5 => changes.relationshipSellen,
                     6 => changes.relationshipMalenia,
                     7 => changes.relationshipRecluse,
+                    8 => changes.relationshipExecutor,
+                    9 => changes.relationshipDuchess,
                     _ => changes.relationshipDefault
                 };
 
@@ -471,6 +477,8 @@ namespace EldenEncouragement
                     case 5: changes.relationshipSellen -= 1; break;
                     case 6: changes.relationshipMalenia -= 1; break;
                     case 7: changes.relationshipRecluse -= 1; break;
+                    case 8: changes.relationshipExecutor -= 1; break;
+                    case 9: changes.relationshipDuchess -= 1; break;
                     default: changes.relationshipDefault -= 1; break;
                 }
 
@@ -607,6 +615,8 @@ namespace EldenEncouragement
                     5 => changes.relationshipSellen,
                     6 => changes.relationshipMalenia,
                     7 => changes.relationshipRecluse,
+                    8 => changes.relationshipExecutor,
+                    9 => changes.relationshipDuchess,
                     _ => changes.relationshipDefault // Default if character is unknown
                 };
 
@@ -943,6 +953,8 @@ namespace EldenEncouragement
                     changes.relationshipSellen = 10;
                     changes.relationshipMalenia = 10;
                     changes.relationshipRecluse = 10;
+                    changes.relationshipExecutor = 10;
+                    changes.relationshipDuchess = 10;
                     changes.prevCharacter = c; // Store the character index
 
                     SaveChanges(changes);
@@ -979,6 +991,8 @@ namespace EldenEncouragement
                         5 => changes.relationshipSellen,
                         6 => changes.relationshipMalenia,
                         7 => changes.relationshipRecluse,
+                        8 => changes.relationshipExecutor,
+                        9 => changes.relationshipDuchess,
                         _ => changes.relationshipDefault // Default if character is unknown
                     };
 
@@ -1183,6 +1197,8 @@ namespace EldenEncouragement
                         case 5: changes.relationshipSellen = relationship; break;
                         case 6: changes.relationshipMalenia = relationship; break;
                         case 7: changes.relationshipRecluse = relationship; break;
+                        case 8: changes.relationshipExecutor = relationship; break;
+                        case 9: changes.relationshipDuchess = relationship; break;
                         default: changes.relationshipDefault = relationship; break;
                     }
                     changes.currentEnemy = ResolveEnemy();
@@ -1233,6 +1249,8 @@ namespace EldenEncouragement
                     5 => changes.relationshipSellen,
                     6 => changes.relationshipMalenia,
                     7 => changes.relationshipRecluse,
+                    8 => changes.relationshipExecutor,
+                    9 => changes.relationshipDuchess,
                     _ => changes.relationshipDefault // Default if character is unknown
                 };
 

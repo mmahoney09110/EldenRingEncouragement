@@ -11,7 +11,6 @@ using System.Windows.Interop;
 using System.Windows.Media; // Needed for Matrix
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace EldenRingOverlay
 {
@@ -305,7 +304,7 @@ namespace EldenRingOverlay
                 {
                     var value = line.Split('=')[1].Trim();
                     if (int.TryParse(value, out int result))
-                        character = Math.Max(0, Math.Min(result, 7)); // Ensure 0 - 6
+                        character = Math.Max(0, Math.Min(result, 9)); // Ensure 0 - 9
                     break;
                 }
             }

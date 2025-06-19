@@ -168,6 +168,9 @@ public class EldenTTS
             4 => "en-GB-RyanNeural",                // Messmer
             5 => "en-US-SerenaMultilingualNeural",     // Sellen
             6 => "en-US-AvaNeural",                     // Malenia
+            7 => "en-US-AvaNeural",                     // Recluse
+            8 => "en-US-AdamMultilingualNeural",             // executor
+            9 => "en-GB-SoniaNeural",                    // Generic Emma
             _ => "en-US-NancyMultilingualNeural"
         };
     }
