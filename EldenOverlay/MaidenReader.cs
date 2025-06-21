@@ -947,16 +947,6 @@ namespace EldenEncouragement
                     changes.recentEnemyDiedTo = "None"; // Initialize last enemy died to
                     changes.lastEnemyTime = DateTime.Now; // Initialize last enemy time
                     changes.pastEnemies.Add(currentEnemy);
-                    changes.relationshipMelina = 10; // Initial relationship level with maiden
-                    changes.relationshipRanni = 10;
-                    changes.relationshipBlaidd = 10;
-                    changes.relationshipMillicent = 10;
-                    changes.relationshipMessmer = 10;
-                    changes.relationshipSellen = 10;
-                    changes.relationshipMalenia = 10;
-                    changes.relationshipRecluse = 10;
-                    changes.relationshipExecutor = 10;
-                    changes.relationshipDuchess = 10;
                     changes.prevCharacter = c; // Store the character index
                     changes.prevCharacters.Add(c); // Add the character index to the list of previous characters
 
