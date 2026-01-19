@@ -227,7 +227,7 @@ namespace EldenEncouragement
             });
 
             using var HttpClient = new HttpClient();
-            var response = await HttpClient.PostAsync("https://openai-proxy-server-vo9f.onrender.com/api/response", content);
+            var response = await HttpClient.PostAsync("https://chat-proxy-r2t8.onrender.com/api/OpenRouter", content);
 
             if (response.IsSuccessStatusCode)
             {
